@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Properties>
+        <Property name="logFile">bus</Property>
+    </Properties>
+    <Appenders>
+        <File name="logToFile"
+                     fileName="${logFile}.log"
+                     append="false">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level - %msg%n" />
+        </File>
+        <Console name="STDOUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level - %msg%n" />
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="error" additivity="false">
+            <AppenderRef ref="STDOUT"/>
+        </Root>
+        <Logger level="trace" name="MessageLogger" additivity="false">
+            <ThresholdFilter level="info"/>
+            <AppenderRef ref="logToFile"/>
+        </Logger>
+    </Loggers>
+</Configuration>

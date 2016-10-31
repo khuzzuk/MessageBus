@@ -2,9 +2,9 @@ package pl.khuzzuk.messaging;
 
 import javafx.application.Platform;
 
-class GuiMultiSubscriber extends AbstractMultiSubscriber<Message> {
+public class GuiRequestSubscriber extends RequestCommunicateSubscriber {
     @Override
-    public void receive(Message message) {
+    public void receive(RequestMessage message) {
         Platform.runLater(() -> super.receive(message));
     }
 }

@@ -10,7 +10,7 @@ import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import java.util.function.Consumer;
 
 @Log4j2(topic = "MessageLogger")
-abstract class AbstractMultiContentSubscriber implements MultiContentSubscriber {
+abstract class AbstractMultiContentSubscriber<T extends BagMessage> implements MultiContentSubscriber<T> {
     @Getter(AccessLevel.PACKAGE)
     @Setter(AccessLevel.PACKAGE)
     private Bus bus;
@@ -21,19 +21,19 @@ abstract class AbstractMultiContentSubscriber implements MultiContentSubscriber 
     private MultiValuedMap<String, Reactor> reactors;
     @SuppressWarnings("unchecked")
     @Override
-    public void receive(BagMessage message) {
+    public void receive(T message) {
         try {
-            consumers.get(message.getType()).stream().forEach(c -> c.accept(message.getMessage()));
+            consumers.get(message.getType()).forEach(c -> c.accept(message.getMessage()));
         } catch (ClassCastException e) {
             log.error("Wrong type of Message for Consumer: " + consumers.get(message.getType()) +
                     " and message type: " + message.getType());
             e.printStackTrace();
         }
-        reactors.get(message.getType()).stream().forEach(Reactor::resolve);
+        reactors.get(message.getType()).forEach(Reactor::resolve);
     }
 
     @Override
-    public <T> void subscribe(String msgType, Consumer<T> consumer) {
+    public <V> void subscribe(String msgType, Consumer<V> consumer) {
         assureInit();
         consumers.put(msgType, consumer);
         bus.subscribe(this, msgType);
@@ -70,7 +70,7 @@ abstract class AbstractMultiContentSubscriber implements MultiContentSubscriber 
         }
     }
 
-    private void assureInit() {
+    void assureInit() {
         if (consumers == null) {
             consumers = new HashSetValuedHashMap<>();
         }
@@ -94,7 +94,7 @@ abstract class AbstractMultiContentSubscriber implements MultiContentSubscriber 
 
     @SuppressWarnings("unchecked")
     public void receive(Object content) {
-        consumers.get(messageType).stream().forEach(c -> c.accept(content));
-        reactors.get(messageType).stream().forEach(Reactor::resolve);
+        consumers.get(messageType).forEach(c -> c.accept(content));
+        reactors.get(messageType).forEach(Reactor::resolve);
     }
 }

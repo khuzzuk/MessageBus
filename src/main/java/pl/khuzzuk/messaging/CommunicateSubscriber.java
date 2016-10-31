@@ -1,4 +1,4 @@
 package pl.khuzzuk.messaging;
 
-class CommunicateSubscriber extends AbstractSubscriber {
+class CommunicateSubscriber extends AbstractSubscriber<Message> {
 }

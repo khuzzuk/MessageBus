@@ -3,7 +3,7 @@ package pl.khuzzuk.messaging;
 import lombok.*;
 
 @ToString(exclude = {"bus", "reactor"})
-abstract class AbstractSubscriber implements Subscriber<Message> {
+abstract class AbstractSubscriber<T extends Message> implements Subscriber<T> {
     @Getter(AccessLevel.PACKAGE)
     @Setter(AccessLevel.PACKAGE)
     private Bus bus;
@@ -23,7 +23,7 @@ abstract class AbstractSubscriber implements Subscriber<Message> {
     }
 
     @Override
-    public void receive(Message message) {
+    public void receive(T message) {
         reactor.resolve();
     }
 

@@ -3,7 +3,7 @@ package pl.khuzzuk.messaging;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 
-abstract class AbstractMultiSubscriber extends AbstractSubscriber implements MultiSubscriber<Message> {
+abstract class AbstractMultiSubscriber<T extends Message> extends AbstractSubscriber<T> implements MultiSubscriber<T> {
     private MultiValuedMap<String, Reactor> messages;
     @Override
     public void subscribe(String msgType, Reactor reactor) {
@@ -20,7 +20,7 @@ abstract class AbstractMultiSubscriber extends AbstractSubscriber implements Mul
     }
 
     @Override
-    public void receive(Message message) {
-        messages.get(message.getType()).stream().forEach(Reactor::resolve);
+    public void receive(T message) {
+        messages.get(message.getType()).forEach(Reactor::resolve);
     }
 }

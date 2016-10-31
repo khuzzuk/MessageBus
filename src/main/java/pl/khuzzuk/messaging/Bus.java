@@ -8,14 +8,13 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Log4j2(topic = "MessageLogger")
 public class Bus implements Publisher {
     private final BlockingQueue<Message> channel;
     private final MultiValuedMap<String, Subscriber<? extends Message>> subscribers;
     private final MessageWorker messageWorker;
-    private MultiBagSubscriber bagSubscribers;
-    private GuiMultiBagSubscriber guiSubscribers;
 
     private Bus(BlockingQueue<Message> channel, MultiValuedMap<String, Subscriber<? extends Message>> subscribers, MessageWorker messageWorker) {
         this.channel = channel;
@@ -29,10 +28,6 @@ public class Bus implements Publisher {
         MessageWorker messageWorker = new MessageWorker(subscribers, channel, Executors.newFixedThreadPool(3));
         messageWorker.startWorker();
         Bus bus = new Bus(channel, subscribers, messageWorker);
-        bus.bagSubscribers = new MultiBagSubscriber();
-        bus.bagSubscribers.setBus(bus);
-        bus.guiSubscribers = new GuiMultiBagSubscriber();
-        bus.guiSubscribers.setBus(bus);
         return bus;
     }
 
@@ -49,23 +44,35 @@ public class Bus implements Publisher {
     }
 
     public void removeAllActionsFor(String topic) {
-        bagSubscribers.unSubscribe(topic);
+        subscribers.get(topic).forEach(Subscriber::unSubscribe);
     }
 
     public void setReaction(String topic, Reactor reactor) {
-        bagSubscribers.subscribe(topic, reactor);
+        getSubscriber(topic, reactor);
     }
 
-    public void setReaction(String topic, Consumer consumer) {
-        bagSubscribers.subscribe(topic, consumer);
+    public <T> void setReaction(String topic, Consumer<T> consumer) {
+        getContentSubscriber(topic, consumer);
+    }
+
+    public void setResponse(String topic, Reactor reaction) {
+        getRequestSubscriber(topic, reaction);
+    }
+
+    public <V, R> void setResponseResolver(String topic, Function<V, R> resolver) {
+        getRequestContentSubscriber(topic, resolver);
     }
 
     public void setGuiReaction(String topic, Reactor reactor) {
-        guiSubscribers.subscribe(topic, reactor);
+        getGuiSubscriber(topic, reactor);
     }
 
     public void setGuiReaction(String topic, Consumer consumer) {
-        guiSubscribers.subscribe(topic, consumer);
+        getGuiContentSubscriber(topic, consumer);
+    }
+
+    public void setGuiResponse(String topic, Function responseResolver) {
+        getGuiRequestContentSubscriber(topic, responseResolver);
     }
 
     public Message getCommunicate(String topic) {
@@ -77,7 +84,12 @@ public class Bus implements Publisher {
         return (BagMessage<T>) new ContentMessage<>().setType(topic).setMessage(content);
     }
 
-    public Publisher<Message> getPublisher() {
+    public <T> RequestBagMessage<T> getBagRequest(String topic, String responseType, T content) {
+        return new RequestContentMessage<T>().setType(topic)
+                .setResponseType(responseType).setMessage(content);
+    }
+
+    public <T extends Message> Publisher<T> getPublisher() {
         CommunicatePublisher publisher = new CommunicatePublisher();
         publisher.setBus(this);
         return publisher;
@@ -95,30 +107,78 @@ public class Bus implements Publisher {
         return publisher;
     }
 
-    public Subscriber<Message> getSubscriber(String topic) {
+    public Subscriber<Message> getSubscriber(String topic, Reactor reaction) {
         CommunicateSubscriber subscriber = new CommunicateSubscriber();
         subscriber.setBus(this);
+        subscriber.setMessageType(topic);
+        subscriber.setReactor(reaction);
+        subscriber.subscribe();
+        return subscriber;
+    }
+
+    public <T, M extends BagMessage<T>> ContentSubscriber<T, M> getContentSubscriber(
+            String topic, Consumer<T> consumer) {
+        BagSubscriber<T, M> bagSubscriber = new BagSubscriber<>(topic);
+        bagSubscriber.setBus(this);
+        bagSubscriber.setConsumer(consumer);
+        bagSubscriber.subscribe();
+        return bagSubscriber;
+    }
+
+    public Subscriber<RequestMessage> getRequestSubscriber(String topic, Reactor reaction) {
+        RequestCommunicateSubscriber subscriber = new RequestCommunicateSubscriber();
+        subscriber.setBus(this);
+        subscriber.setReactor(reaction);
         subscriber.setMessageType(topic);
         subscriber.subscribe();
         return subscriber;
     }
 
-    public <T> ContentSubscriber<T> getContentSubscriber(String topic) {
-        BagSubscriber<T> bagSubscriber = new BagSubscriber<>(topic);
-        bagSubscriber.setBus(this);
-        bagSubscriber.subscribe();
-        return bagSubscriber;
+    private Subscriber<Message> getGuiSubscriber(String topic, Reactor reactor) {
+        GuiCommunicateSubscriber subscriber = new GuiCommunicateSubscriber();
+        subscriber.setMessageType(topic);
+        subscriber.setReactor(reactor);
+        subscriber.subscribe();
+        return subscriber;
     }
 
-    public <T> ContentSubscriber<T> getGuiContentSubscriber(String topic) {
-        GuiContentSubscriber<T> subscriber = new GuiContentSubscriber<>(topic);
+    public <T, M extends BagMessage<T>> ContentSubscriber<T, M> getGuiContentSubscriber(
+            String topic, Consumer<T> consumer) {
+        GuiContentSubscriber<T, M> subscriber = new GuiContentSubscriber<>(topic);
         subscriber.setBus(this);
+        subscriber.setConsumer(consumer);
+        subscriber.subscribe();
+        return subscriber;
+    }
+
+    private <T, R> RequestContentSubscriber<T, R> getGuiRequestContentSubscriber(
+            String topic, Function<T, R> responseResolver) {
+        GuiRequestBagSubscriber<T, R> subscriber = new GuiRequestBagSubscriber<T, R>();
+        subscriber.setBus(this);
+        subscriber.setMessageType(topic);
+        subscriber.setResponseResolver(responseResolver);
+        subscriber.subscribe();
+        return subscriber;
+    }
+
+    public <V, R> RequestContentSubscriber<V, R> getRequestContentSubscriber(
+            String topic, Function<V, R> responseResolver) {
+        RequestBagSubscriber<V, R> subscriber = new RequestBagSubscriber<>();
+        subscriber.setBus(this);
+        subscriber.setMessageType(topic);
+        subscriber.setResponseResolver(responseResolver);
         subscriber.subscribe();
         return subscriber;
     }
 
     public MultiSubscriber<Message> getMultiSubscriber() {
         MultiCommunicateSubscriber subscriber = new MultiCommunicateSubscriber();
+        subscriber.setBus(this);
+        return subscriber;
+    }
+
+    public MultiSubscriber<RequestMessage> getMultiRequestSubscriber() {
+        MultiRequestSubscriber subscriber = new MultiRequestSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
@@ -133,6 +193,22 @@ public class Bus implements Publisher {
         GuiMultiBagSubscriber subscriber = new GuiMultiBagSubscriber();
         subscriber.setBus(this);
         return subscriber;
+    }
+
+    public MultiRequestContentSubscriber getMultiRequestContentSubscriber() {
+        MultiRequestBagSubscriber subscriber = new MultiRequestBagSubscriber();
+        subscriber.setBus(this);
+        return subscriber;
+    }
+
+    public MultiRequestContentSubscriber getGuiMultiRequestContentSubscriber() {
+        GuiMultiRequestBagSubscriber subscriber = new GuiMultiRequestBagSubscriber();
+        subscriber.setBus(this);
+        return subscriber;
+    }
+
+    public RequestMessage getRequest(String topic, String responseType) {
+        return new CommunicateRequest().setType(topic).setResponseType(responseType);
     }
 
     @Override

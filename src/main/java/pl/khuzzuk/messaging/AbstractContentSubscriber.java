@@ -5,7 +5,7 @@ import lombok.*;
 import java.util.function.Consumer;
 
 @ToString(exclude = {"bus", "reactor", "consumer"})
-abstract class AbstractContentSubscriber<T> implements ContentSubscriber<T> {
+abstract class AbstractContentSubscriber<T, M extends BagMessage<T>> implements ContentSubscriber<T, M> {
     @Getter(AccessLevel.PACKAGE)
     @Setter(AccessLevel.PACKAGE)
     private Bus bus;
@@ -15,10 +15,10 @@ abstract class AbstractContentSubscriber<T> implements ContentSubscriber<T> {
     @Getter
     private String messageType;
     @Setter
-    private Reactor reactor;
+    Reactor reactor;
 
     @Override
-    public void receive(BagMessage<T> message) {
+    public void receive(M message) {
         if (consumer != null) {
             receive(message.getMessage());
         } else if (reactor != null) {

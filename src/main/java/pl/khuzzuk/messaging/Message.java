@@ -1,6 +1,6 @@
 package pl.khuzzuk.messaging;
 
-public interface Message {
+interface Message {
     Message setType(String type);
     String getType();
 }

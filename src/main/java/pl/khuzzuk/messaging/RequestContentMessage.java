@@ -2,7 +2,7 @@ package pl.khuzzuk.messaging;
 
 import lombok.Getter;
 
-public class RequestContentMessage<T> extends ContentMessage<T> implements RequestBagMessage<T> {
+class RequestContentMessage<T> extends ContentMessage<T> implements RequestBagMessage<T> {
     @Getter
     private String responseType;
 

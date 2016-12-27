@@ -2,7 +2,7 @@ package pl.khuzzuk.messaging;
 
 import javafx.application.Platform;
 
-public class GuiRequestBagSubscriber<T, R> extends RequestBagSubscriber<T, R> {
+class GuiRequestBagSubscriber<T, R> extends RequestBagSubscriber<T, R> {
     @Override
     public void receive(RequestBagMessage<T> message) {
         Platform.runLater(() -> super.receive(message));

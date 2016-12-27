@@ -2,7 +2,7 @@ package pl.khuzzuk.messaging;
 
 import lombok.Getter;
 
-public class CommunicateRequest extends AbstractMessage implements RequestMessage {
+class CommunicateRequest extends AbstractMessage implements RequestMessage {
     @Getter
     private String responseType;
 

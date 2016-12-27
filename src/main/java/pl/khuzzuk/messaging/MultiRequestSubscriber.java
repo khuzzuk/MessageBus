@@ -1,6 +1,6 @@
 package pl.khuzzuk.messaging;
 
-public class MultiRequestSubscriber extends AbstractMultiSubscriber<RequestMessage> {
+class MultiRequestSubscriber extends AbstractMultiSubscriber<RequestMessage> {
     @Override
     public void receive(RequestMessage message) {
         super.receive(message);

@@ -2,7 +2,7 @@ package pl.khuzzuk.messaging;
 
 import java.util.function.Function;
 
-public class RequestBagSubscriber<T, R> extends AbstractContentSubscriber<T, RequestBagMessage<T>> implements RequestContentSubscriber<T, R> {
+class RequestBagSubscriber<T, R> extends AbstractContentSubscriber<T, RequestBagMessage<T>> implements RequestContentSubscriber<T, R> {
     private Function<T, R> responseResolvers;
 
     @Override

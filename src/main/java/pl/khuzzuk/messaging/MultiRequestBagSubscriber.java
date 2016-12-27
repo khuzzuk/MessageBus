@@ -7,7 +7,7 @@ import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import java.util.function.Function;
 
 @Log4j2
-public class MultiRequestBagSubscriber extends AbstractMultiContentSubscriber<RequestBagMessage<Object>> implements MultiRequestContentSubscriber {
+class MultiRequestBagSubscriber extends AbstractMultiContentSubscriber<RequestBagMessage<Object>> implements MultiRequestContentSubscriber {
     private MultiValuedMap<String, Function> responseResolvers;
 
     @Override

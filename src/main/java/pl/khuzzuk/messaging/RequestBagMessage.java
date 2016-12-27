@@ -1,6 +1,6 @@
 package pl.khuzzuk.messaging;
 
-public interface RequestBagMessage<T> extends BagMessage<T>, RequestMessage {
+interface RequestBagMessage<T> extends BagMessage<T>, RequestMessage {
     @Override
     RequestBagMessage<T> setType(String type);
 

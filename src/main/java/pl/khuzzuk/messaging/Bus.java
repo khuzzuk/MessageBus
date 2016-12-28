@@ -40,7 +40,7 @@ public class Bus {
     }
 
     public void closeBus() {
-        messageWorker.closeScheduler();
+        publish(new CommunicateMessage().setType("closeBus"));
     }
 
     public void removeAllActionsFor(String topic) {

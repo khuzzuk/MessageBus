@@ -32,11 +32,13 @@ class MessageWorker {
     void closeScheduler() {
         try {
             log.info("Termination of the Bus");
-            pool.awaitTermination(1, TimeUnit.SECONDS);
+            if (!pool.awaitTermination(1, TimeUnit.SECONDS))
+                throw new InterruptedException();
         } catch (InterruptedException e) {
             log.error("Termination of the Bus did not success.");
             log.error(e.getMessage());
             log.error(e.getStackTrace());
+            pool.shutdown();
         }
     }
 
@@ -49,6 +51,9 @@ class MessageWorker {
                 Message message = getMessage();
                 if (message == null) {
                     continue;
+                } else if (message.getType().equals("closeBus")) {
+                    closeScheduler();
+                    break;
                 }
                 Collection<Subscriber<? extends Message>> subscriberCollection =
                         subscribers.get(message.getType());

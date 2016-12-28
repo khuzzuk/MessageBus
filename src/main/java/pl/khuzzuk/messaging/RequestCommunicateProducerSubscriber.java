@@ -15,7 +15,6 @@ class RequestCommunicateProducerSubscriber<T> extends AbstractSubscriber<Request
 
     @Override
     public void receive(RequestMessage message) {
-        super.receive(message);
         getBus().publish(new ContentMessage<>().setType(message.getResponseType()).setMessage(supplier.get()));
     }
 }

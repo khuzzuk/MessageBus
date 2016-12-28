@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Log4j2(topic = "MessageLogger")
 public class Bus {
@@ -56,6 +57,10 @@ public class Bus {
 
     public void setResponse(String topic, Reactor reaction) {
         getRequestSubscriber(topic, reaction);
+    }
+
+    public <T> void setResponse(String topic, Supplier<T> supplier) {
+        getRequestProducerSubscriber(topic, supplier);
     }
 
     public <V, R> void setResponseResolver(String topic, Function<V, R> resolver) {
@@ -176,6 +181,16 @@ public class Bus {
         subscriber.setBus(this);
         subscriber.setMessageType(topic);
         subscriber.setResponseResolver(responseResolver);
+        subscriber.subscribe();
+        return subscriber;
+    }
+
+    private <V> RequestProducerSubscriber<V> getRequestProducerSubscriber(
+            String topic, Supplier<V> supplier) {
+        RequestCommunicateProducerSubscriber<V> subscriber = new RequestCommunicateProducerSubscriber<>();
+        subscriber.setBus(this);
+        subscriber.setMessageType(topic);
+        subscriber.setResponseProducer(supplier);
         subscriber.subscribe();
         return subscriber;
     }

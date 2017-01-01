@@ -6,7 +6,7 @@
 
     <groupId>pl.khuzzuk</groupId>
     <artifactId>message-bus</artifactId>
-    <version>1.3.1</version>
+    <version>1.3.2</version>
     <name>Message Bus</name>
     <description>Message Bus for reactive programming</description>
     <url>https://github.com/khuzzuk/MessageBus</url>

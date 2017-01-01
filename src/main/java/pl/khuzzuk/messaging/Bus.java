@@ -71,7 +71,7 @@ public class Bus {
         getGuiSubscriber(topic, reactor);
     }
 
-    public void setGuiReaction(String topic, Consumer consumer) {
+    public <T> void setGuiReaction(String topic, Consumer<T> consumer) {
         getGuiContentSubscriber(topic, consumer);
     }
 

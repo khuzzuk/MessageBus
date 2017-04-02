@@ -63,7 +63,7 @@ public class Bus {
         getRequestProducerSubscriber(topic, supplier);
     }
 
-    public <V, R> void setResponseResolver(String topic, Function<V, R> resolver) {
+    public <V, R> void setResponse(String topic, Function<V, R> resolver) {
         getRequestContentSubscriber(topic, resolver);
     }
 
@@ -91,7 +91,7 @@ public class Bus {
         publish(getBagRequest(topic, responseTopic, content));
     }
 
-    public void send(String communicate, String responseTopic) {
+    public void sendCommunicate(String communicate, String responseTopic) {
         publish(getRequest(communicate, responseTopic));
     }
 

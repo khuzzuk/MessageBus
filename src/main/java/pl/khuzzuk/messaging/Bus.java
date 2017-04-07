@@ -79,6 +79,10 @@ public class Bus {
         getGuiRequestContentSubscriber(topic, responseResolver);
     }
 
+    public <T> void setGuiResponse(String topic, Supplier<T> supplier) {
+        getGuiRequestContentSubscriber(topic, supplier);
+    }
+
     public void send(String communicate) {
         publish(getCommunicate(communicate));
     }
@@ -114,7 +118,7 @@ public class Bus {
     }
 
     private <T extends Message> Publisher<T> getPublisher() {
-        CommunicatePublisher publisher = new CommunicatePublisher();
+        CommunicatePublisher<T> publisher = new CommunicatePublisher<>();
         publisher.setBus(this);
         return publisher;
     }
@@ -181,6 +185,16 @@ public class Bus {
         subscriber.setBus(this);
         subscriber.setMessageType(topic);
         subscriber.setResponseResolver(responseResolver);
+        subscriber.subscribe();
+        return subscriber;
+    }
+
+    private <T> RequestProducerSubscriber<T> getGuiRequestContentSubscriber(
+            String topic, Supplier<T> supplier) {
+        GuiRequestCommunicateProducerSubscriber<T> subscriber = new GuiRequestCommunicateProducerSubscriber<>();
+        subscriber.setBus(this);
+        subscriber.setMessageType(topic);
+        subscriber.setResponseProducer(supplier);
         subscriber.subscribe();
         return subscriber;
     }

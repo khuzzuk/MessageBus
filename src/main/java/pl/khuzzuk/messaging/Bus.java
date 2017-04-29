@@ -164,6 +164,7 @@ public class Bus {
 
     private Subscriber<Message> getGuiSubscriber(String topic, Reactor reactor) {
         GuiCommunicateSubscriber subscriber = new GuiCommunicateSubscriber();
+        subscriber.setBus(this);
         subscriber.setMessageType(topic);
         subscriber.setReactor(reactor);
         subscriber.subscribe();

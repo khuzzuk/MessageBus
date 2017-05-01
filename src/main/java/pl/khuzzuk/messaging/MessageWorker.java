@@ -23,8 +23,8 @@ class MessageWorker {
         this.pool = pool;
     }
 
-    void startWorker() {
-        Thread schedulerThread = new Thread(new Scheduler());
+    void startWorker(boolean enableLogging) {
+        Thread schedulerThread = new Thread(enableLogging ? new LogScheduler() : new NoLogScheduler());
         schedulerThread.setName(threadsName);
         schedulerThread.start();
     }
@@ -42,7 +42,18 @@ class MessageWorker {
         }
     }
 
-    private class Scheduler implements Runnable {
+    private abstract class Scheduler implements Runnable {
+        Message getMessage() {
+            try {
+                return channel.take();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+    }
+
+    private class LogScheduler extends Scheduler {
 
         @SuppressWarnings("unchecked")
         @Override
@@ -63,13 +74,26 @@ class MessageWorker {
                 }
             }
         }
+    }
 
-        private Message getMessage() {
-            try {
-                return channel.take();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                return null;
+    private class NoLogScheduler extends Scheduler {
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public void run() {
+            while (true) {
+                Message message = getMessage();
+                if (message == null) {
+                    continue;
+                } else if (message.getType().equals("closeBus")) {
+                    closeScheduler();
+                    break;
+                }
+                Collection<Subscriber<? extends Message>> subscriberCollection =
+                        subscribers.get(message.getType());
+                for (Subscriber s : subscriberCollection) {
+                    pool.submit(new SilentMessageTask(message, s));
+                }
             }
         }
     }
@@ -84,6 +108,22 @@ class MessageWorker {
         public void run() {
             try {
                 log.info("received message: " + message);
+                subscriber.receive(message);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @AllArgsConstructor
+    private class SilentMessageTask implements Runnable {
+        private Message message;
+        private Subscriber subscriber;
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public void run() {
+            try {
                 subscriber.receive(message);
             } catch (Exception e) {
                 e.printStackTrace();

@@ -16,6 +16,7 @@ public class Bus {
     private final BlockingQueue<Message> channel;
     private final MultiValuedMap<String, Subscriber<? extends Message>> subscribers;
     private final MessageWorker messageWorker;
+    private static boolean logging;
 
     private Bus(BlockingQueue<Message> channel, MultiValuedMap<String, Subscriber<? extends Message>> subscribers, MessageWorker messageWorker) {
         this.channel = channel;
@@ -23,11 +24,12 @@ public class Bus {
         this.messageWorker = messageWorker;
     }
 
-    public static Bus initializeBus() {
+    public static Bus initializeBus(boolean enableLogging) {
         BlockingQueue<Message> channel = new LinkedBlockingQueue<>();
-        HashSetValuedHashMap<String, Subscriber<? extends Message>> subscribers = new HashSetValuedHashMap<>();
+        MultiValuedMap<String, Subscriber<? extends Message>> subscribers = new HashSetValuedHashMap<>();
         MessageWorker messageWorker = new MessageWorker(subscribers, channel, Executors.newFixedThreadPool(3));
-        messageWorker.startWorker();
+        messageWorker.startWorker(enableLogging);
+        logging = enableLogging;
         return new Bus(channel, subscribers, messageWorker);
     }
 
@@ -258,7 +260,7 @@ public class Bus {
 
     void publish(Message message) {
         try {
-            log.info("accepted message: " + message);
+            if (logging) log.info("accepted message: " + message);
             channel.put(message);
         } catch (InterruptedException e) {
             e.printStackTrace();

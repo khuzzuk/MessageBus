@@ -17,7 +17,7 @@ public class BusTest {
 
     @BeforeSuite
     public void setUp() throws Exception {
-        bus = Bus.initializeBus();
+        bus = Bus.initializeBus(false);
     }
 
     @Test
@@ -61,7 +61,7 @@ public class BusTest {
         String msg = "requestBagTest";
         String response = "responseBagTest";
         Integer toAdd = 1;
-        bus.setResponseResolver(msg, i::addAndGet);
+        bus.setResponse(msg, i::addAndGet);
         bus.setReaction(response, i::addAndGet);
         bus.publish(bus.getBagRequest(msg, response, toAdd));
         await().atMost(200, MILLISECONDS).until(() -> i.get() == 2);

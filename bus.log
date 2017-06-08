@@ -1,18 +1,4 @@
-20:47:27.788 [main] INFO  - accepted message: ContentMessage(type=content check)
-20:47:27.805 [Scheduler thread] INFO  - forwarded: ContentMessage(type=content check) to: AbstractContentSubscriber(messageType=content check)
-20:47:27.910 [pool-2-thread-1] INFO  - received message: ContentMessage(type=content check)
-20:47:28.088 [main] INFO  - accepted message: Message=simple check
-20:47:28.089 [Scheduler thread] INFO  - forwarded: Message=simple check to: AbstractSubscriber(messageType=simple check)
-20:47:28.091 [pool-2-thread-2] INFO  - received message: Message=simple check
-20:47:28.172 [main] INFO  - accepted message: ContentMessage(type=requestBagTest)
-20:47:28.172 [Scheduler thread] INFO  - forwarded: ContentMessage(type=requestBagTest) to: AbstractContentSubscriber(messageType=requestBagTest)
-20:47:28.175 [pool-2-thread-3] INFO  - received message: ContentMessage(type=requestBagTest)
-20:47:28.177 [pool-2-thread-3] INFO  - accepted message: ContentMessage(type=responseBagTest)
-20:47:28.177 [Scheduler thread] INFO  - forwarded: ContentMessage(type=responseBagTest) to: AbstractContentSubscriber(messageType=responseBagTest)
-20:47:28.180 [pool-2-thread-1] INFO  - received message: ContentMessage(type=responseBagTest)
-20:47:28.307 [main] INFO  - accepted message: CommunicateRequest=request checkresponseType='response check
-20:47:28.308 [Scheduler thread] INFO  - forwarded: CommunicateRequest=request checkresponseType='response check to: AbstractSubscriber(messageType=request check)
-20:47:28.314 [pool-2-thread-2] INFO  - received message: CommunicateRequest=request checkresponseType='response check
-20:47:28.317 [pool-2-thread-2] INFO  - accepted message: Message=response check
-20:47:28.318 [Scheduler thread] INFO  - forwarded: Message=response check to: AbstractSubscriber(messageType=response check)
-20:47:28.319 [pool-2-thread-1] INFO  - received message: Message=response check
+14:27:29.583 [Scheduler thread] INFO  - Termination of the Bus
+14:27:30.586 [Scheduler thread] ERROR - Termination of the Bus did not success.
+14:27:30.586 [Scheduler thread] ERROR - null
+14:27:30.587 [Scheduler thread] ERROR - [Ljava.lang.StackTraceElement;@7606c780

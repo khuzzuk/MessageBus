@@ -1,25 +1,29 @@
 package pl.khuzzuk.messaging;
 
 import lombok.extern.log4j.Log4j2;
-import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 @Log4j2
 class MultiRequestBagSubscriber extends AbstractMultiContentSubscriber<RequestBagMessage<Object>> implements MultiRequestContentSubscriber {
-    private MultiValuedMap<String, Function> responseResolvers;
+    private Map<String, List<Function>> responseResolvers;
 
     @Override
     public void subscribe(String msgType, Function responseResolver) {
         assureInit();
-        responseResolvers.put(msgType, responseResolver);
+        responseResolvers.computeIfAbsent(msgType, k -> new ArrayList<>());
+        responseResolvers.get(msgType).add(responseResolver);
         getBus().subscribe(this, msgType);
     }
 
     @Override
     public RequestContentSubscriber setResponseResolver(Function responseResolver) {
-        responseResolvers.put(getMessageType(), responseResolver);
+        responseResolvers.computeIfAbsent(getMessageType(), k -> new ArrayList<>());
+        responseResolvers.get(getMessageType()).add(responseResolver);
         return this;
     }
 
@@ -41,7 +45,7 @@ class MultiRequestBagSubscriber extends AbstractMultiContentSubscriber<RequestBa
     void assureInit() {
         super.assureInit();
         if (responseResolvers == null) {
-            responseResolvers = new HashSetValuedHashMap<>();
+            responseResolvers = new HashMap<>();
         }
     }
 }

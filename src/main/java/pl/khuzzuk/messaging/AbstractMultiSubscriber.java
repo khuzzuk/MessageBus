@@ -1,16 +1,19 @@
 package pl.khuzzuk.messaging;
 
-import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 abstract class AbstractMultiSubscriber<T extends Message> extends AbstractSubscriber<T> implements MultiSubscriber<T> {
-    private MultiValuedMap<String, Reactor> messages;
+    private Map<String, List<Reactor>> messages;
     @Override
     public void subscribe(String msgType, Reactor reactor) {
         if (messages == null) {
-            messages = new HashSetValuedHashMap<>();
+            messages = new HashMap<>();
         }
-        messages.put(msgType, reactor);
+        messages.computeIfAbsent(msgType, k -> new ArrayList<>());
+        messages.get(msgType).add(reactor);
         getBus().subscribe(this, msgType);
     }
 

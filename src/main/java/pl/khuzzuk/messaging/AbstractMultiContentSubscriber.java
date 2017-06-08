@@ -4,9 +4,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
-import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 @Log4j2(topic = "MessageLogger")
@@ -17,8 +19,8 @@ abstract class AbstractMultiContentSubscriber<T extends BagMessage> implements M
     @Getter
     @Setter
     private String messageType;
-    private MultiValuedMap<String, Consumer> consumers;
-    private MultiValuedMap<String, Reactor> reactors;
+    private Map<String, List<Consumer>> consumers;
+    private Map<String, List<Reactor>> reactors;
     @SuppressWarnings("unchecked")
     @Override
     public void receive(T message) {
@@ -35,14 +37,16 @@ abstract class AbstractMultiContentSubscriber<T extends BagMessage> implements M
     @Override
     public <V> void subscribe(String msgType, Consumer<V> consumer) {
         assureInit();
-        consumers.put(msgType, consumer);
+        consumers.computeIfAbsent(msgType, k -> new ArrayList<>());
+        consumers.get(msgType).add(consumer);
         bus.subscribe(this, msgType);
     }
 
     @Override
     public void subscribe(String msgType, Reactor reactor) {
         assureInit();
-        reactors.put(msgType, reactor);
+        reactors.computeIfAbsent(msgType, k -> new ArrayList<>());
+        reactors.get(msgType).add(reactor);
         bus.subscribe(this, msgType);
     }
 
@@ -64,32 +68,26 @@ abstract class AbstractMultiContentSubscriber<T extends BagMessage> implements M
         bus.unSubscribe(this, messageType);
     }
 
-    private void assureProperState() {
-        if (messageType == null) {
-            throw new IllegalStateException("No message type set for this subscriber");
-        }
-    }
-
     void assureInit() {
         if (consumers == null) {
-            consumers = new HashSetValuedHashMap<>();
+            consumers = new HashMap<>();
         }
         if (reactors == null) {
-            reactors = new HashSetValuedHashMap<>();
+            reactors = new HashMap<>();
         }
     }
 
     public void setConsumer(Consumer consumer) {
-        assureProperState();
         assureInit();
-        consumers.put(messageType, consumer);
+        consumers.computeIfAbsent(messageType, k -> new ArrayList<>());
+        consumers.get(messageType).add(consumer);
     }
 
     @Override
     public void setReactor(Reactor reactor) {
-        assureProperState();
         assureInit();
-        reactors.put(messageType, reactor);
+        reactors.computeIfAbsent(messageType, k -> new ArrayList<>());
+        reactors.get(messageType).add(reactor);
     }
 
     @SuppressWarnings("unchecked")

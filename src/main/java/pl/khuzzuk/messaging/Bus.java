@@ -1,9 +1,11 @@
 package pl.khuzzuk.messaging;
 
 import lombok.extern.log4j.Log4j2;
-import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -14,31 +16,38 @@ import java.util.function.Supplier;
 @Log4j2(topic = "MessageLogger")
 public class Bus {
     private final BlockingQueue<Message> channel;
-    private final MultiValuedMap<String, Subscriber<? extends Message>> subscribers;
-    private final MessageWorker messageWorker;
+    private final Map<String, List<Subscriber<? extends Message>>> subscribers;
     private static boolean logging;
 
-    private Bus(BlockingQueue<Message> channel, MultiValuedMap<String, Subscriber<? extends Message>> subscribers, MessageWorker messageWorker) {
+    Bus(BlockingQueue<Message> channel, Map<String, List<Subscriber<? extends Message>>> subscribers) {
         this.channel = channel;
         this.subscribers = subscribers;
-        this.messageWorker = messageWorker;
+    }
+
+    public static Bus initializeBus() {
+        return initializeBus(false);
     }
 
     public static Bus initializeBus(boolean enableLogging) {
+        return initializeBus(enableLogging, 3);
+    }
+
+    public static Bus initializeBus(boolean enableLogging, int threads) {
         BlockingQueue<Message> channel = new LinkedBlockingQueue<>();
-        MultiValuedMap<String, Subscriber<? extends Message>> subscribers = new HashSetValuedHashMap<>();
-        MessageWorker messageWorker = new MessageWorker(subscribers, channel, Executors.newFixedThreadPool(3));
+        Map<String, List<Subscriber<? extends Message>>> subscribers = new HashMap<>();
+        MessageWorker messageWorker = new MessageWorker(subscribers, channel, Executors.newFixedThreadPool(threads));
         messageWorker.startWorker(enableLogging);
         logging = enableLogging;
-        return new Bus(channel, subscribers, messageWorker);
+        return new Bus(channel, subscribers);
     }
 
     void subscribe(Subscriber<? extends Message> subscriber, String messageType) {
-        subscribers.put(messageType, subscriber);
+        subscribers.computeIfAbsent(messageType, k -> new ArrayList<>());
+        subscribers.get(messageType).add(subscriber);
     }
 
     void unSubscribe(Subscriber<? extends Message> subscriber, String msgType) {
-        subscribers.removeMapping(msgType, subscriber);
+        subscribers.get(msgType).remove(subscriber);
     }
 
     public void closeBus() {
@@ -110,22 +119,22 @@ public class Bus {
         return (BagMessage<T>) new ContentMessage<>().setType(topic).setMessage(content);
     }
 
-    private RequestMessage getRequest(String topic, String responseType) {
+    RequestMessage getRequest(String topic, String responseType) {
         return new CommunicateRequest().setType(topic).setResponseType(responseType);
     }
 
-    private <T> RequestBagMessage<T> getBagRequest(String topic, String responseType, T content) {
+    <T> RequestBagMessage<T> getBagRequest(String topic, String responseType, T content) {
         return new RequestContentMessage<T>().setType(topic)
                 .setResponseType(responseType).setMessage(content);
     }
 
-    private <T extends Message> Publisher<T> getPublisher() {
+    <T extends Message> Publisher<T> getPublisher() {
         CommunicatePublisher<T> publisher = new CommunicatePublisher<>();
         publisher.setBus(this);
         return publisher;
     }
 
-    private <T> BagPublisher<T> getBagPublisher() {
+    <T> BagPublisher<T> getBagPublisher() {
         ContentPublisher<T> publisher = new ContentPublisher<>();
         publisher.setBus(this);
         return publisher;
@@ -137,7 +146,7 @@ public class Bus {
         return publisher;
     }
 
-    private Subscriber<Message> getSubscriber(String topic, Reactor reaction) {
+    Subscriber<Message> getSubscriber(String topic, Reactor reaction) {
         CommunicateSubscriber subscriber = new CommunicateSubscriber();
         subscriber.setBus(this);
         subscriber.setMessageType(topic);
@@ -146,7 +155,7 @@ public class Bus {
         return subscriber;
     }
 
-    private <T, M extends BagMessage<T>> ContentSubscriber<T, M> getContentSubscriber(
+    <T, M extends BagMessage<T>> ContentSubscriber<T, M> getContentSubscriber(
             String topic, Consumer<T> consumer) {
         BagSubscriber<T, M> bagSubscriber = new BagSubscriber<>(topic);
         bagSubscriber.setBus(this);
@@ -155,7 +164,7 @@ public class Bus {
         return bagSubscriber;
     }
 
-    private Subscriber<RequestMessage> getRequestSubscriber(String topic, Reactor reaction) {
+    Subscriber<RequestMessage> getRequestSubscriber(String topic, Reactor reaction) {
         RequestCommunicateSubscriber subscriber = new RequestCommunicateSubscriber();
         subscriber.setBus(this);
         subscriber.setReactor(reaction);

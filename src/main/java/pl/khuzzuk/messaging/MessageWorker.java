@@ -70,6 +70,12 @@ class MessageWorker {
                     }
                     Collection<Subscriber<? extends Message>> subscriberCollection =
                             subscribers.get(message.getType());
+
+                    if (subscriberCollection == null) {
+                        log.error("no subscriber for " + message.getType());
+                        continue;
+                    }
+
                     for (Subscriber s : subscriberCollection) {
                         log.info("forwarded: " + message + " to: " + s);
                         pool.submit(new MessageTask(message, s));

@@ -3,6 +3,8 @@ package pl.khuzzuk.messaging;
 import com.jayway.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import pl.khuzzuk.messaging.messages.CommunicateMessage;
+import pl.khuzzuk.messaging.subscribers.Subscriber;
 
 import java.util.HashMap;
 import java.util.List;

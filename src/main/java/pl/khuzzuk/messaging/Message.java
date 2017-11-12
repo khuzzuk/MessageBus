@@ -1,6 +1,12 @@
 package pl.khuzzuk.messaging;
 
-interface Message {
+@SuppressWarnings("unused")
+public interface Message {
     Message setType(String type);
+
     String getType();
+
+    String getErrorType();
+
+    Message setErrorType(String errorType);
 }

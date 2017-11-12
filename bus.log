@@ -1,4 +1,0 @@
-14:27:29.583 [Scheduler thread] INFO  - Termination of the Bus
-14:27:30.586 [Scheduler thread] ERROR - Termination of the Bus did not success.
-14:27:30.586 [Scheduler thread] ERROR - null
-14:27:30.587 [Scheduler thread] ERROR - [Ljava.lang.StackTraceElement;@7606c780

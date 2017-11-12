@@ -1,7 +1,10 @@
 package pl.khuzzuk.messaging;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.log4j.Log4j2;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import pl.khuzzuk.messaging.messages.CommunicateMessage;
+import pl.khuzzuk.messaging.messages.RequestMessage;
+import pl.khuzzuk.messaging.subscribers.Subscriber;
 
 import java.util.Collection;
 import java.util.List;
@@ -10,9 +13,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-@Log4j2(topic = "MessageLogger")
 class MessageWorker {
     private static final String threadsName = "Scheduler thread";
+    private static final Logger log = LogManager.getLogger("MessageLogger");
     private final Map<String, List<Subscriber<? extends Message>>> subscribers;
     private final BlockingQueue<Message> channel;
     private final ExecutorService pool;
@@ -30,10 +33,10 @@ class MessageWorker {
         schedulerThread.start();
     }
 
-    void closeScheduler() {
+    private void closeScheduler() {
         try {
             log.info("Termination of the Bus");
-            if (!pool.awaitTermination(2, TimeUnit.SECONDS))
+            if (!pool.awaitTermination(1, TimeUnit.SECONDS))
                 throw new InterruptedException();
         } catch (InterruptedException e) {
             log.error("Termination of the Bus did not success.");
@@ -103,8 +106,15 @@ class MessageWorker {
                         closeScheduler();
                         break;
                     }
+
                     Collection<Subscriber<? extends Message>> subscriberCollection =
                             subscribers.get(message.getType());
+
+                    if (subscriberCollection == null) {
+                        System.out.println("no subscriber for " + message.getType());
+                        continue;
+                    }
+
                     for (Subscriber s : subscriberCollection) {
                         pool.submit(new SilentMessageTask(message, s));
                     }
@@ -115,10 +125,14 @@ class MessageWorker {
         }
     }
 
-    @AllArgsConstructor
     private class MessageTask implements Runnable {
         private Message message;
         private Subscriber subscriber;
+
+        MessageTask(Message message, Subscriber subscriber) {
+            this.message = message;
+            this.subscriber = subscriber;
+        }
 
         @SuppressWarnings("unchecked")
         @Override
@@ -127,15 +141,20 @@ class MessageWorker {
                 log.info("received message: " + message);
                 subscriber.receive(message);
             } catch (Exception e) {
+                log.error(describeException(e, message.getType()));
                 e.printStackTrace();
             }
         }
     }
 
-    @AllArgsConstructor
     private class SilentMessageTask implements Runnable {
         private Message message;
         private Subscriber subscriber;
+
+        public SilentMessageTask(Message message, Subscriber subscriber) {
+            this.message = message;
+            this.subscriber = subscriber;
+        }
 
         @SuppressWarnings("unchecked")
         @Override
@@ -143,8 +162,29 @@ class MessageWorker {
             try {
                 subscriber.receive(message);
             } catch (Exception e) {
+                System.err.println(describeException(e, message.getType()));
                 e.printStackTrace();
+                if (message.getErrorType() != null) {
+                    try {
+                        channel.put(new CommunicateMessage().setType(message.getErrorType()));
+                    } catch (InterruptedException internalException) {
+                        internalException.printStackTrace();
+                    }
+                }
             }
         }
+    }
+
+    private static String describeException(Exception e, String topic) {
+        if (e.getClass().equals(ClassCastException.class)) {
+            if (e.getMessage().contains(RequestMessage.class.getSimpleName())) {
+                return "Could not create response for simple message, given topic (" +
+                        topic +
+                        ") is for requests but received simple message. " +
+                        "Try to use bus.sendCommunicate(topic, responseTopic)" +
+                        " or bus.send(topic, responseTopic, content) instead.";
+            }
+        }
+        return e.getMessage();
     }
 }

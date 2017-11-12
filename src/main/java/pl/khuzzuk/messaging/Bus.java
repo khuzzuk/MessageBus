@@ -1,6 +1,9 @@
 package pl.khuzzuk.messaging;
 
-import lombok.extern.log4j.Log4j2;
+import org.apache.logging.log4j.Logger;
+import pl.khuzzuk.messaging.messages.*;
+import pl.khuzzuk.messaging.publisher.*;
+import pl.khuzzuk.messaging.subscribers.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,8 +16,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-@Log4j2(topic = "MessageLogger")
 public class Bus {
+    private static final Logger log = org.apache.logging.log4j.LogManager.getLogger("MessageLogger");
     private final BlockingQueue<Message> channel;
     private final Map<String, List<Subscriber<? extends Message>>> subscribers;
     private static boolean logging;
@@ -24,14 +27,17 @@ public class Bus {
         this.subscribers = subscribers;
     }
 
+    @SuppressWarnings("unused")
     public static Bus initializeBus() {
         return initializeBus(false);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static Bus initializeBus(boolean enableLogging) {
         return initializeBus(enableLogging, 3);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public static Bus initializeBus(boolean enableLogging, int threads) {
         BlockingQueue<Message> channel = new LinkedBlockingQueue<>();
         Map<String, List<Subscriber<? extends Message>>> subscribers = new HashMap<>();
@@ -41,73 +47,98 @@ public class Bus {
         return new Bus(channel, subscribers);
     }
 
-    void subscribe(Subscriber<? extends Message> subscriber, String messageType) {
+    public void subscribe(Subscriber<?> subscriber, String messageType) {
         subscribers.computeIfAbsent(messageType, k -> new ArrayList<>());
         subscribers.get(messageType).add(subscriber);
     }
 
-    void unSubscribe(Subscriber<? extends Message> subscriber, String msgType) {
+    public void unSubscribe(Subscriber<?> subscriber, String msgType) {
         subscribers.get(msgType).remove(subscriber);
     }
 
+    @SuppressWarnings("unused")
     public void closeBus() {
         publish(new CommunicateMessage().setType("closeBus"));
     }
 
+    @SuppressWarnings("unused")
     public void removeAllActionsFor(String topic) {
         subscribers.get(topic).forEach(Subscriber::unSubscribe);
     }
 
-    public void setReaction(String topic, Reactor reactor) {
-        getSubscriber(topic, reactor);
+    @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
+    public Object setReaction(String topic, Action action) {
+        return getSubscriber(topic, action);
     }
 
-    public <T> void setReaction(String topic, Consumer<T> consumer) {
-        getContentSubscriber(topic, consumer);
+    @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
+    public <T> Object setReaction(String topic, Consumer<T> consumer) {
+        return getContentSubscriber(topic, consumer);
     }
 
-    public void setResponse(String topic, Reactor reaction) {
-        getRequestSubscriber(topic, reaction);
+    @SuppressWarnings("unused")
+    public Object setResponse(String topic, Action reaction) {
+        return getRequestSubscriber(topic, reaction);
     }
 
-    public <T> void setResponse(String topic, Supplier<T> supplier) {
-        getRequestProducerSubscriber(topic, supplier);
+    @SuppressWarnings("unused")
+    public <T> Object setResponse(String topic, Supplier<T> supplier) {
+        return getRequestProducerSubscriber(topic, supplier);
     }
 
-    public <V, R> void setResponse(String topic, Function<V, R> resolver) {
-        getRequestContentSubscriber(topic, resolver);
+    @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
+    public <V, R> Object setResponse(String topic, Function<V, R> resolver) {
+        return getRequestContentSubscriber(topic, resolver);
     }
 
-    public void setGuiReaction(String topic, Reactor reactor) {
-        getGuiSubscriber(topic, reactor);
+    @SuppressWarnings("unused")
+    public Object setGuiReaction(String topic, Action action) {
+        return getGuiSubscriber(topic, action);
     }
 
-    public <T> void setGuiReaction(String topic, Consumer<T> consumer) {
-        getGuiContentSubscriber(topic, consumer);
+    @SuppressWarnings("unused")
+    public <T> Object setGuiReaction(String topic, Consumer<T> consumer) {
+        return getGuiContentSubscriber(topic, consumer);
     }
 
-    public void setGuiResponse(String topic, Function responseResolver) {
-        getGuiRequestContentSubscriber(topic, responseResolver);
+    @SuppressWarnings("unused")
+    public <T, R> Object setGuiResponse(String topic, Function<T, R> responseResolver) {
+        return getGuiRequestContentSubscriber(topic, responseResolver);
     }
 
-    public <T> void setGuiResponse(String topic, Supplier<T> supplier) {
-        getGuiRequestContentSubscriber(topic, supplier);
+    @SuppressWarnings("unused")
+    public <T> Object setGuiResponse(String topic, Supplier<T> supplier) {
+        return getGuiRequestContentSubscriber(topic, supplier);
     }
 
+    @SuppressWarnings("WeakerAccess")
     public void send(String communicate) {
         publish(getCommunicate(communicate));
     }
 
+    @SuppressWarnings("unused")
     public <T> void send(String topic, T content) {
         publish(getBagMessage(topic, content));
     }
 
+    @SuppressWarnings("unused")
     public <T> void send(String topic, String responseTopic, T content) {
         publish(getBagRequest(topic, responseTopic, content));
     }
 
+    @SuppressWarnings("unused")
+    public <T> void send(String topic, String responseTopic, T content, String errorTopic) {
+        publish(getBagRequest(topic, responseTopic, content, errorTopic));
+    }
+
+    @SuppressWarnings("unused")
     public void sendCommunicate(String communicate, String responseTopic) {
         publish(getRequest(communicate, responseTopic));
+    }
+
+    @SuppressWarnings("unused")
+    public void sendCommunicate(String communicate, String responseTopic, String errorTopic) {
+        publish(getRequest(communicate, responseTopic, errorTopic));
     }
 
     private Message getCommunicate(String topic) {
@@ -123,9 +154,18 @@ public class Bus {
         return new CommunicateRequest().setType(topic).setResponseType(responseType);
     }
 
+    RequestMessage getRequest(String topic, String responseType, String errorType) {
+        return new CommunicateRequest().setType(topic).setResponseType(responseType).setErrorType(errorType);
+    }
+
     <T> RequestBagMessage<T> getBagRequest(String topic, String responseType, T content) {
         return new RequestContentMessage<T>().setType(topic)
                 .setResponseType(responseType).setMessage(content);
+    }
+
+    <T> RequestBagMessage<T> getBagRequest(String topic, String responseType, T content, String errorType) {
+        return new RequestContentMessage<T>().setType(topic)
+                .setResponseType(responseType).setMessage(content).setErrorType(errorType);
     }
 
     <T extends Message> Publisher<T> getPublisher() {
@@ -140,17 +180,18 @@ public class Bus {
         return publisher;
     }
 
+    @SuppressWarnings("unused")
     private MultiContentPublisher getMultiContentPublisher() {
         MultiBagPublisher publisher = new MultiBagPublisher();
         publisher.setBus(this);
         return publisher;
     }
 
-    Subscriber<Message> getSubscriber(String topic, Reactor reaction) {
+    Subscriber<Message> getSubscriber(String topic, Action reaction) {
         CommunicateSubscriber subscriber = new CommunicateSubscriber();
         subscriber.setBus(this);
         subscriber.setMessageType(topic);
-        subscriber.setReactor(reaction);
+        subscriber.setAction(reaction);
         subscriber.subscribe();
         return subscriber;
     }
@@ -164,20 +205,20 @@ public class Bus {
         return bagSubscriber;
     }
 
-    Subscriber<RequestMessage> getRequestSubscriber(String topic, Reactor reaction) {
+    Subscriber<RequestMessage> getRequestSubscriber(String topic, Action reaction) {
         RequestCommunicateSubscriber subscriber = new RequestCommunicateSubscriber();
         subscriber.setBus(this);
-        subscriber.setReactor(reaction);
+        subscriber.setAction(reaction);
         subscriber.setMessageType(topic);
         subscriber.subscribe();
         return subscriber;
     }
 
-    private Subscriber<Message> getGuiSubscriber(String topic, Reactor reactor) {
+    private Subscriber<Message> getGuiSubscriber(String topic, Action action) {
         GuiCommunicateSubscriber subscriber = new GuiCommunicateSubscriber();
         subscriber.setBus(this);
         subscriber.setMessageType(topic);
-        subscriber.setReactor(reactor);
+        subscriber.setAction(action);
         subscriber.subscribe();
         return subscriber;
     }
@@ -231,43 +272,49 @@ public class Bus {
         return subscriber;
     }
 
+    @SuppressWarnings("unused")
     private MultiSubscriber<Message> getMultiSubscriber() {
         MultiCommunicateSubscriber subscriber = new MultiCommunicateSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
 
+    @SuppressWarnings("unused")
     private MultiSubscriber<RequestMessage> getMultiRequestSubscriber() {
         MultiRequestSubscriber subscriber = new MultiRequestSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
 
+    @SuppressWarnings("unused")
     private MultiContentSubscriber getMultiContentSubscriber() {
         MultiBagSubscriber subscriber = new MultiBagSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
 
+    @SuppressWarnings("unused")
     private MultiContentSubscriber getGuiMultiContentSubscriber() {
         GuiMultiBagSubscriber subscriber = new GuiMultiBagSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
 
+    @SuppressWarnings("unused")
     private MultiRequestContentSubscriber getMultiRequestContentSubscriber() {
         MultiRequestBagSubscriber subscriber = new MultiRequestBagSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
 
+    @SuppressWarnings("unused")
     private MultiRequestContentSubscriber getGuiMultiRequestContentSubscriber() {
         GuiMultiRequestBagSubscriber subscriber = new GuiMultiRequestBagSubscriber();
         subscriber.setBus(this);
         return subscriber;
     }
 
-    void publish(Message message) {
+    public void publish(Message message) {
         try {
             if (logging) log.info("accepted message: " + message);
             channel.put(message);

@@ -1,9 +1,7 @@
 package pl.khuzzuk.messaging.subscribers;
 
-import pl.khuzzuk.messaging.messages.BagMessage;
-
-public class BagSubscriber<T, M extends BagMessage<T>> extends AbstractContentSubscriber<T, M> {
-    public BagSubscriber(String msgType) {
+public class BagSubscriber extends AbstractContentSubscriber {
+    public BagSubscriber(Enum<? extends Enum> msgType) {
         setMessageType(msgType);
     }
 }

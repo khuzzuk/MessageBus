@@ -1,13 +1,17 @@
 package pl.khuzzuk.messaging.subscribers;
 
 import javafx.application.Platform;
-import pl.khuzzuk.messaging.messages.RequestMessage;
+import pl.khuzzuk.messaging.Bus;
 
+//TODO make EventProcessor decide if task should be submitted to JavaFX thread or pool thread. At the moment it will end up travelling from pool to JavaFX.
 @SuppressWarnings("unused")
 class GuiRequestSubscriber extends RequestCommunicateSubscriber {
-    @SuppressWarnings("unused")
+    public GuiRequestSubscriber(Bus bus) {
+        super(bus);
+    }
+
     @Override
-    public void receive(RequestMessage message) {
-        Platform.runLater(() -> super.receive(message));
+    public void receive(Enum<? extends Enum> responseTopic) {
+        Platform.runLater(() -> super.receive(responseTopic));
     }
 }

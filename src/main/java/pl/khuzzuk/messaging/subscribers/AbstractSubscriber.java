@@ -2,50 +2,25 @@ package pl.khuzzuk.messaging.subscribers;
 
 import pl.khuzzuk.messaging.Action;
 import pl.khuzzuk.messaging.Bus;
-import pl.khuzzuk.messaging.Message;
 
-abstract class AbstractSubscriber<T extends Message> implements Subscriber<T> {
-    private Bus bus;
-    private String messageType;
-    private Action action;
+abstract class AbstractSubscriber implements Subscriber {
+    private Enum<? extends Enum> messageType;
+    Action action;
 
     @Override
-    public void subscribe() {
-        if (messageType == null) throw new IllegalStateException("No message type set for " + this);
-        bus.subscribe(this, messageType);
-    }
-
-    @Override
-    public void receive(T message) {
+    public void receive() {
         action.resolve();
     }
 
-    @Override
-    public void unSubscribe() {
-        bus.unSubscribe(this, messageType);
-    }
-
     public String toString() {
-        return "AbstractSubscriber(messageType=" + this.messageType + ")";
+        return "Subscriber(messageType=" + this.messageType + ")";
     }
 
-    public Bus getBus() {
-        return this.bus;
-    }
-
-    public String getMessageType() {
+    public Enum<? extends Enum> getMessageType() {
         return this.messageType;
     }
 
-    public Action getAction() {
-        return this.action;
-    }
-
-    public void setBus(Bus bus) {
-        this.bus = bus;
-    }
-
-    public void setMessageType(String messageType) {
+    public void setMessageType(Enum<? extends Enum> messageType) {
         this.messageType = messageType;
     }
 

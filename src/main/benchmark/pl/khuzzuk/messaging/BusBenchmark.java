@@ -35,7 +35,7 @@ public class BusBenchmark
       bus = Bus.initializeBus(false);
       for (String mgs : msgs)
       {
-         bus.setReaction(mgs, counter::incrementAndGet);
+         //bus.setReaction(mgs, counter::incrementAndGet);
       }
    }
 
@@ -47,7 +47,7 @@ public class BusBenchmark
             System.out.println("initialization iterated for " + i);
          }
          for (String msg : msgs) {
-            bus.send(msg);
+            //bus.send(msg);
          }
       }
    }
@@ -66,7 +66,7 @@ public class BusBenchmark
       {
          for (String msg : msgs)
          {
-            bus.send(msg);
+            //bus.send(msg);
          }
       }
       long timeElapsed = (System.nanoTime() - start) / 1_000_000L;

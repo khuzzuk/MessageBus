@@ -24,23 +24,21 @@ public class BusTest {
 
     @Test
     public void publishSubscribeCheck() throws Exception {
-        String msg = "simple check";
         AtomicInteger x = new AtomicInteger(0);
 
-        bus.setReaction(msg, x::incrementAndGet);
-        bus.send(msg);
+        bus.setReaction(MessageType.COMMUNICATE, x::incrementAndGet);
+        bus.send(MessageType.COMMUNICATE);
 
         await().pollDelay(50, MILLISECONDS).atMost(100, MILLISECONDS).until(() -> x.get() == 1);
     }
 
     @Test
     public void publishContent() {
-        String msg = "content check";
         String content = "content";
         List<String> receiver = new ArrayList<>();
 
-        bus.<String>setReaction(msg, receiver::add);
-        bus.send(msg, content);
+        bus.<String>setReaction(MessageType.COMMUNICATE, receiver::add);
+        bus.send(MessageType.COMMUNICATE, content);
 
         await().atMost(200, MILLISECONDS).until(() -> receiver.size()>0);
         Assert.assertEquals(content, receiver.get(0));
@@ -48,13 +46,11 @@ public class BusTest {
 
     @Test
     public void requestCheck() throws Exception {
-        String msg = "request check";
-        String response = "response check";
         AtomicInteger counter = new AtomicInteger(0);
 
-        bus.setResponse(msg, () -> {});
-        bus.setReaction(response, counter::incrementAndGet);
-        bus.sendCommunicate(msg, response);
+        bus.setResponse(MessageType.REQUEST, () -> {});
+        bus.setReaction(MessageType.RESPONSE, counter::incrementAndGet);
+        bus.sendCommunicate(MessageType.REQUEST, MessageType.RESPONSE);
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
     }
@@ -62,72 +58,65 @@ public class BusTest {
     @Test
     public void requestBagTest() throws Exception {
         AtomicInteger i = new AtomicInteger(0);
-        String msg = "requestBagTest";
-        String response = "responseBagTest";
         Integer toAdd = 10;
 
-        bus.setResponse(msg, i::addAndGet);
-        bus.setReaction(response, i::addAndGet);
-        bus.publish(bus.getBagRequest(msg, response, toAdd));
+        bus.setResponse(MessageType.REQUEST, i::addAndGet);
+        bus.setReaction(MessageType.RESPONSE, i::addAndGet);
+        bus.send(MessageType.REQUEST, MessageType.RESPONSE, toAdd);
 
         await().atMost(200, MILLISECONDS).until(() -> i.get() == 20);
     }
 
     @Test
     public void describeExceptionWhenTryingToSendSimpleMessageForRequest() throws Exception {
-        String msg = "msg";
         PrintStream mocked = Mockito.mock(PrintStream.class);
         System.setErr(mocked);
 
-        bus.setResponse(msg, () -> {});
-        bus.send(msg);
+        bus.setResponse(MessageType.COMMUNICATE, () -> {});
+        bus.send(MessageType.COMMUNICATE);
 
-        await().atMost(200, MILLISECONDS).until(() -> Mockito.verify(mocked).println(Mockito.anyString()));
+        await().atMost(200, MILLISECONDS).until(() -> Mockito.verify(mocked).println(MessageType.COMMUNICATE));
     }
 
     @Test
     public void checkNoSubscriberMessage() throws Exception {
         PrintStream mocked = Mockito.mock(PrintStream.class);
-        System.setOut(mocked);
+        System.setErr(mocked);
 
-        bus.send("msg");
+        bus.send(MessageType.COMMUNICATE);
 
-        await().atMost(200, MILLISECONDS).until(() -> Mockito.verify(mocked).println(Mockito.anyString()));
+        await().atMost(200, MILLISECONDS).until(() -> Mockito.verify(mocked).println(MessageType.COMMUNICATE));
     }
 
-    @Test
     public void errorResponse() throws Exception {
-        String msg = "msg";
-        String res = "res";
-        String err = "err";
         AtomicInteger counter = new AtomicInteger(0);
 
-        bus.setResponse(msg, () -> {
+        bus.setResponse(MessageType.REQUEST, () -> {
             throw new IllegalStateException();
         });
-        bus.setReaction(err, counter::incrementAndGet);
-        bus.setReaction(res, () -> counter.addAndGet(2));
+        bus.setReaction(MessageType.ERROR, counter::incrementAndGet);
+        bus.setReaction(MessageType.RESPONSE, () -> counter.addAndGet(2));
 
-        bus.sendCommunicate(msg, res, err);
+        bus.sendCommunicate(MessageType.REQUEST, MessageType.RESPONSE, MessageType.ERROR);
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
     }
 
-    @Test
     public void errorResponseWithContent() throws Exception {
-        String msg = "msg";
-        String res = "res";
-        String err = "err";
         AtomicInteger counter = new AtomicInteger(0);
 
-        bus.setResponse(msg, __ -> {
+        bus.setResponse(MessageType.REQUEST, __ -> {
             throw new IllegalStateException();
         });
-        bus.setReaction(err, counter::incrementAndGet);
-        bus.setReaction(res, () -> counter.addAndGet(2));
+        bus.setReaction(MessageType.ERROR, counter::incrementAndGet);
+        bus.setReaction(MessageType.RESPONSE, () -> counter.addAndGet(2));
 
-        bus.send(msg, res, 1, err);
+        bus.send(MessageType.REQUEST, MessageType.RESPONSE, 1, MessageType.ERROR);
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
+    }
+
+    enum MessageType {
+        COMMUNICATE, ERROR, REQUEST, RESPONSE;
     }
 }

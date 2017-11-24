@@ -1,12 +1,21 @@
 package pl.khuzzuk.messaging.subscribers;
 
-import pl.khuzzuk.messaging.messages.CommunicateMessage;
-import pl.khuzzuk.messaging.messages.RequestMessage;
+import pl.khuzzuk.messaging.Bus;
 
-public class RequestCommunicateSubscriber extends AbstractSubscriber<RequestMessage> {
+public class RequestCommunicateSubscriber extends AbstractSubscriber implements RequestSubscriber {
+    private Bus bus;
+
+    public RequestCommunicateSubscriber(Bus bus) {
+        this.bus = bus;
+    }
+
     @Override
-    public void receive(RequestMessage message) {
-        super.receive(message);
-        getBus().publish(new CommunicateMessage().setType(message.getResponseType()));
+    public void receive(Enum<? extends Enum> responseTopic) {
+        super.receive();
+        bus.send(responseTopic);
+    }
+
+    public Bus getBus() {
+        return bus;
     }
 }

@@ -1,26 +1,27 @@
 package pl.khuzzuk.messaging.subscribers;
 
-import pl.khuzzuk.messaging.messages.ContentMessage;
-import pl.khuzzuk.messaging.messages.RequestBagMessage;
+import pl.khuzzuk.messaging.Bus;
 
 import java.util.function.Function;
 
-public class RequestBagSubscriber<T, R> extends AbstractContentSubscriber<T, RequestBagMessage<T>> implements RequestContentSubscriber<T, R> {
-    private Function<T, R> responseResolvers;
+public class RequestBagSubscriber extends AbstractContentSubscriber implements TransformerSubscriber {
+    private Function responseResolver;
+    private Bus bus;
 
-    @Override
-    public void receive(RequestBagMessage<T> message) {
-        if (responseResolvers != null) {
-            getBus().publish(new ContentMessage<R>().setType(message.getResponseType()).setMessage(
-                    responseResolvers.apply(message.getMessage())));
-        } else {
-            super.receive(message);
-        }
+    public RequestBagSubscriber(Bus bus, Enum<? extends Enum<?>> msgType) {
+        this.bus = bus;
+        this.setMessageType(msgType);
     }
 
     @Override
-    public RequestContentSubscriber<T, R> setResponseResolver(Function<T, R> responseResolver) {
-        this.responseResolvers = responseResolver;
+    public <T> void receive(T content, Enum<? extends Enum<?>> responseTopic) {
+        Object responseContent = responseResolver.apply(content);
+        bus.send(responseTopic, responseContent);
+    }
+
+    @Override
+    public <T, R> TransformerSubscriber setResponseResolver(Function<T, R> responseResolver) {
+        this.responseResolver = responseResolver;
         return this;
     }
 }

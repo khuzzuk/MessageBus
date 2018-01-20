@@ -6,7 +6,7 @@ import java.util.function.Function;
 
 public class RequestBagSubscriber extends AbstractContentSubscriber implements TransformerSubscriber {
     private Function responseResolver;
-    private Bus bus;
+    Bus bus;
 
     public RequestBagSubscriber(Bus bus, Enum<? extends Enum<?>> msgType) {
         this.bus = bus;
@@ -14,9 +14,17 @@ public class RequestBagSubscriber extends AbstractContentSubscriber implements T
     }
 
     @Override
-    public <T> void receive(T content, Enum<? extends Enum<?>> responseTopic) {
-        Object responseContent = responseResolver.apply(content);
-        bus.send(responseTopic, responseContent);
+    @SuppressWarnings("unchecked")
+    public <T> void receive(T content, Enum<? extends Enum<?>> responseTopic, Enum<? extends Enum<?>> errorTopic) {
+        try {
+            Object responseContent = responseResolver.apply(content);
+            bus.send(responseTopic, responseContent);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            if (errorTopic != null) {
+                bus.send(errorTopic);
+            }
+        }
     }
 
     @Override

@@ -4,7 +4,7 @@ import org.apache.logging.log4j.Logger;
 import pl.khuzzuk.messaging.subscribers.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -12,58 +12,81 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class Bus {
+public class Bus<T extends Enum<T>> {
     private static final Logger log = org.apache.logging.log4j.LogManager.getLogger("MessageLogger");
-    private final EventProcessor eventProcessor;
-    private final Map<Enum<? extends Enum<?>>, List<Subscriber>> subscribers;
-    private final Map<Enum<? extends Enum<?>>, List<RequestSubscriber>> requestSubscribers;
-    private final Map<Enum<? extends Enum<?>>, List<ContentSubscriber>> contentSubscribers;
-    private final Map<Enum<? extends Enum<?>>, List<TransformerSubscriber>> transformerSubscribers;
-    private static boolean logging;
+    private Class<T> enumType;
+    private final EventProcessor<T> eventProcessor;
+    private final Map<T, List<Subscriber>> subscribers;
+    private final Map<T, List<RequestSubscriber>> requestSubscribers;
+    private final Map<T, List<ContentSubscriber>> contentSubscribers;
+    private final Map<T, List<TransformerSubscriber>> transformerSubscribers;
+    private boolean logging;
 
-    Bus(EventProcessor eventProcessor,
-               Map<Enum<? extends Enum<?>>, List<Subscriber>> subscribers,
-               Map<Enum<? extends Enum<?>>, List<RequestSubscriber>> requestSubscribers,
-               Map<Enum<? extends Enum<?>>, List<ContentSubscriber>> contentSubscribers,
-               Map<Enum<? extends Enum<?>>, List<TransformerSubscriber>> transformerSubscribers) {
+    Bus(Class<T> enumType,
+        EventProcessor<T> eventProcessor,
+        Map<T, List<Subscriber>> subscribers,
+        Map<T, List<RequestSubscriber>> requestSubscribers,
+        Map<T, List<ContentSubscriber>> contentSubscribers,
+        Map<T, List<TransformerSubscriber>> transformerSubscribers,
+        boolean logging) {
+
+        this.enumType = enumType;
         this.eventProcessor = eventProcessor;
         this.subscribers = subscribers;
         this.requestSubscribers = requestSubscribers;
         this.contentSubscribers = contentSubscribers;
         this.transformerSubscribers = transformerSubscribers;
+        this.logging = logging;
     }
 
     @SuppressWarnings("unused")
-    public static Bus initializeBus() {
-        return initializeBus(false);
+    public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType) {
+        return initializeBus(enumType, false);
     }
 
     @SuppressWarnings("WeakerAccess")
-    public static Bus initializeBus(boolean enableLogging) {
-        return initializeBus(enableLogging, 3);
+    public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, boolean enableLogging) {
+        return initializeBus(enumType, enableLogging, 3);
     }
 
     @SuppressWarnings("WeakerAccess")
-    public static Bus initializeBus(boolean enableLogging, int threads) {
-        Map<Enum<? extends Enum<?>>, List<Subscriber>> subscribers = new HashMap<>();
-        Map<Enum<? extends Enum<?>>, List<RequestSubscriber>> requestSubscribers = new HashMap<>();
-        Map<Enum<? extends Enum<?>>, List<ContentSubscriber>> contentSubscribers = new HashMap<>();
-        Map<Enum<? extends Enum<?>>, List<TransformerSubscriber>> transformerSubscribers = new HashMap<>();
-        EventProcessor eventProcessor = new EventProcessor(subscribers, contentSubscribers,
-                requestSubscribers, transformerSubscribers, Executors.newFixedThreadPool(threads));
-        logging = enableLogging;
-        return new Bus(eventProcessor, subscribers, requestSubscribers, contentSubscribers, transformerSubscribers);
+    public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, boolean enableLogging, int threads) {
+        Map<T, List<Subscriber>> subscribers = new EnumMap<>(enumType);
+        Map<T, List<RequestSubscriber>> requestSubscribers = new EnumMap<>(enumType);
+        Map<T, List<ContentSubscriber>> contentSubscribers = new EnumMap<>(enumType);
+        Map<T, List<TransformerSubscriber>> transformerSubscribers = new EnumMap<>(enumType);
+        EventProcessor<T> eventProcessor = new EventProcessor<>(
+                subscribers,
+                requestSubscribers,
+                contentSubscribers,
+                transformerSubscribers,
+                Executors.newFixedThreadPool(threads),
+                enumType);
+
+        return new Bus<>(enumType,
+                eventProcessor,
+                subscribers,
+                requestSubscribers,
+                contentSubscribers,
+                transformerSubscribers,
+                enableLogging);
     }
 
-    @SuppressWarnings("unused")
-    public void unSubscribe(Object subscriber, Enum<? extends Enum<?>> msgType) {
-        unSubscribe(subscriber, msgType, subscribers);
-        unSubscribe(subscriber, msgType, requestSubscribers);
-        unSubscribe(subscriber, msgType, contentSubscribers);
-        unSubscribe(subscriber, msgType, transformerSubscribers);
+    @SuppressWarnings({"unused", "unchecked"})
+    public void unSubscribe(Object subscriber) {
+        try {
+            Subscriber toUnSubscribe = (Subscriber) subscriber;
+            T messageType = (T) toUnSubscribe.getMessageType();
+            unSubscribe(subscriber, messageType, subscribers);
+            unSubscribe(subscriber, messageType, requestSubscribers);
+            unSubscribe(subscriber, messageType, contentSubscribers);
+            unSubscribe(subscriber, messageType, transformerSubscribers);
+        } catch (ClassCastException e) {
+            throw new IllegalArgumentException("Provided subscriber cannot be unsubscribed. Most likely because it differ from object returned in Bus setReaction/Response methods");
+        }
     }
 
-    private void unSubscribe(Object subscriber, Enum<? extends Enum<?>> msgType, Map<Enum<? extends Enum<?>>, ? extends List> subscribers) {
+    private void unSubscribe(Object subscriber, T msgType, Map<T, ? extends List> subscribers) {
         List list = subscribers.get(msgType);
         if (list != null) {
             list.remove(subscriber);
@@ -79,7 +102,7 @@ public class Bus {
     }
 
     @SuppressWarnings("unused")
-    public void removeAllActionsFor(Enum<? extends Enum<?>> topic) {
+    public void removeAllActionsFor(T topic) {
         subscribers.remove(topic);
         contentSubscribers.remove(topic);
         requestSubscribers.remove(topic);
@@ -87,137 +110,159 @@ public class Bus {
     }
 
     @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-    public Object setReaction(Enum<? extends Enum<?>> topic, Action action) {
+    public Object setReaction(T topic, Action action) {
         Subscriber subscriber = getSubscriber(topic, action);
         subscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(subscriber);
         return subscriber;
     }
 
     @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-    public <T> Object setReaction(Enum<? extends Enum<?>> topic, Consumer<T> consumer) {
+    public <V> Object setReaction(T topic, Consumer<V> consumer) {
         ContentSubscriber contentSubscriber = getContentSubscriber(topic, consumer);
         contentSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(contentSubscriber);
         return contentSubscriber;
     }
 
     @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-    public Object setResponse(Enum<? extends Enum<?>> topic, Action reaction) {
+    public Object setResponse(T topic, Action reaction) {
         RequestSubscriber requestSubscriber = getRequestSubscriber(topic, reaction);
         requestSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(requestSubscriber);
         return requestSubscriber;
     }
 
     @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-    public <T> Object setResponse(Enum<? extends Enum<?>> topic, Supplier<T> supplier) {
+    public <V> Object setResponse(T topic, Supplier<V> supplier) {
         ProducerSubscriber producerSubscriber = getRequestProducerSubscriber(topic, supplier);
         requestSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(producerSubscriber);
         return producerSubscriber;
     }
 
     @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
-    public <V, R> Object setResponse(Enum<? extends Enum<?>> topic, Function<V, R> resolver) {
+    public <V, R> Object setResponse(T topic, Function<V, R> resolver) {
         TransformerSubscriber transformerSubscriber = getRequestContentSubscriber(topic, resolver);
         transformerSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(transformerSubscriber);
         return transformerSubscriber;
     }
 
     @SuppressWarnings("unused")
-    public Object setGuiReaction(Enum<? extends Enum<?>> topic, Action action) {
-        return getGuiSubscriber(topic, action);
+    public Object setFXReaction(T topic, Action action) {
+        Subscriber subscriber = getGuiSubscriber(topic, action);
+        subscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(subscriber);
+        return subscriber;
     }
 
     @SuppressWarnings("unused")
-    public <T> Object setGuiReaction(Enum<? extends Enum<?>> topic, Consumer<T> consumer) {
-        return getGuiContentSubscriber(topic, consumer);
+    public <V> Object setFXReaction(T topic, Consumer<V> consumer) {
+        ContentSubscriber subscriber = getGuiContentSubscriber(topic, consumer);
+        contentSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(subscriber);
+        return subscriber;
+    }
+
+    @SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
+    public Object setFXResponse(T topic, Action reaction) {
+        RequestSubscriber requestSubscriber = getGuiRequestSubscriber(topic, reaction);
+        requestSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(requestSubscriber);
+        return requestSubscriber;
     }
 
     @SuppressWarnings("unused")
-    public <T, R> Object setGuiResponse(Enum<? extends Enum<?>> topic, Function<T, R> responseResolver) {
-        return getGuiRequestContentSubscriber(topic, responseResolver);
+    public <V, R> Object setFXResponse(T topic, Function<V, R> responseResolver) {
+        TransformerSubscriber subscriber = getGuiRequestContentSubscriber(topic, responseResolver);
+        transformerSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(subscriber);
+        return subscriber;
     }
 
     @SuppressWarnings("unused")
-    public <T> Object setGuiResponse(Enum<? extends Enum<?>> topic, Supplier<T> supplier) {
-        return getGuiRequestContentSubscriber(topic, supplier);
+    public <V> Object setFXResponse(T topic, Supplier<V> supplier) {
+        ProducerSubscriber subscriber = getGuiRequestContentSubscriber(topic, supplier);
+        requestSubscribers.computeIfAbsent(topic, key -> new ArrayList<>()).add(subscriber);
+        return subscriber;
     }
 
     @SuppressWarnings("WeakerAccess")
-    public void send(Enum<? extends Enum<?>> communicate) {
+    public void send(T communicate) {
         eventProcessor.processEvent(communicate);
     }
 
     @SuppressWarnings("unused")
-    public <T> void send(Enum<? extends Enum<?>> topic, T content) {
+    public <V> void send(T topic, V content) {
         eventProcessor.processContent(topic, content);
     }
 
     @SuppressWarnings("unused")
-    public <T> void send(Enum<? extends Enum<?>> topic, Enum<? extends Enum<?>> responseTopic, T content) {
-        eventProcessor.processRequestWithContent(topic, responseTopic, content);
+    public <V> void send(T topic, T responseTopic, V content) {
+        eventProcessor.processRequestWithContent(topic, responseTopic, content, null);
     }
 
     @SuppressWarnings("unused")
-    public <T> void send(Enum<? extends Enum<?>> topic,
-                         Enum<? extends Enum<?>> responseTopic,
-                         T content,
-                         Enum<? extends Enum<?>> errorTopic) {
-        throw new UnsupportedOperationException();
+    public <V> void send(T topic,
+                         T responseTopic,
+                         V content,
+                         T errorTopic) {
+        eventProcessor.processRequestWithContent(topic, responseTopic, content, errorTopic);
     }
 
     @SuppressWarnings("unused")
-    public void sendCommunicate(Enum<? extends Enum<?>> communicate, Enum<? extends Enum<?>> responseTopic) {
-        eventProcessor.processRequest(communicate, responseTopic);
+    public void sendMessage(T communicate, T responseTopic) {
+        eventProcessor.processRequest(communicate, responseTopic, null);
     }
 
     @SuppressWarnings("unused")
-    public void sendCommunicate(Enum<? extends Enum<?>> communicate,
-                                Enum<? extends Enum<?>> responseTopic,
-                                Enum<? extends Enum<?>> errorTopic) {
-        throw new UnsupportedOperationException();
+    public void sendMessage(T communicate,
+                            T responseTopic,
+                            T errorTopic) {
+        eventProcessor.processRequest(communicate, responseTopic, errorTopic);
     }
 
-    private Subscriber getSubscriber(Enum<? extends Enum> topic, Action reaction) {
+    private Subscriber getSubscriber(T topic, Action reaction) {
         CommunicateSubscriber subscriber = new CommunicateSubscriber();
         subscriber.setMessageType(topic);
         subscriber.setAction(reaction);
         return subscriber;
     }
 
-    private <T> ContentSubscriber getContentSubscriber(Enum<? extends Enum> topic, Consumer<T> consumer) {
+    private <V> ContentSubscriber getContentSubscriber(T topic, Consumer<V> consumer) {
         BagSubscriber bagSubscriber = new BagSubscriber(topic);
         bagSubscriber.setConsumer(consumer);
         return bagSubscriber;
     }
 
-    private RequestSubscriber getRequestSubscriber(Enum<? extends Enum> topic, Action reaction) {
-        RequestCommunicateSubscriber subscriber = new RequestCommunicateSubscriber(this);
+    private RequestSubscriber getRequestSubscriber(T topic, Action reaction) {
+        RequestMessageSubscriber subscriber = new RequestMessageSubscriber(this);
         subscriber.setAction(reaction);
         subscriber.setMessageType(topic);
         return subscriber;
     }
 
-    private Subscriber getGuiSubscriber(Enum<? extends Enum> topic, Action action) {
+    private Subscriber getGuiSubscriber(T topic, Action action) {
         GuiCommunicateSubscriber subscriber = new GuiCommunicateSubscriber();
         subscriber.setMessageType(topic);
         subscriber.setAction(action);
         return subscriber;
     }
 
-    private <T> ContentSubscriber getGuiContentSubscriber(Enum<? extends Enum> topic, Consumer<T> consumer) {
+    private RequestSubscriber getGuiRequestSubscriber(T topic, Action action) {
+        GuiRequestSubscriber subscriber = new GuiRequestSubscriber(this);
+        subscriber.setMessageType(topic);
+        subscriber.setAction(action);
+        return subscriber;
+    }
+
+    private <V> ContentSubscriber getGuiContentSubscriber(T topic, Consumer<V> consumer) {
         GuiContentSubscriber subscriber = new GuiContentSubscriber(topic);
         subscriber.setConsumer(consumer);
         return subscriber;
     }
 
-    private <T, R> TransformerSubscriber getGuiRequestContentSubscriber(
-            Enum<? extends Enum> topic, Function<T, R> responseResolver) {
+    private <V, R> TransformerSubscriber getGuiRequestContentSubscriber(
+            T topic, Function<V, R> responseResolver) {
         GuiRequestBagSubscriber subscriber = new GuiRequestBagSubscriber(this, topic);
         subscriber.setResponseResolver(responseResolver);
         return subscriber;
     }
 
-    private <T> ProducerSubscriber getGuiRequestContentSubscriber(
-            Enum<? extends Enum<?>> topic, Supplier<T> supplier) {
+    private <V> ProducerSubscriber getGuiRequestContentSubscriber(
+            T topic, Supplier<V> supplier) {
         GuiRequestProducerSubscriber subscriber = new GuiRequestProducerSubscriber(this);
         subscriber.setMessageType(topic);
         subscriber.setResponseProducer(supplier);
@@ -225,7 +270,7 @@ public class Bus {
     }
 
     private <V> ProducerSubscriber getRequestProducerSubscriber(
-            Enum<? extends Enum<?>> topic, Supplier<V> supplier) {
+            T topic, Supplier<V> supplier) {
         RequestProducerSubscriber subscriber = new RequestProducerSubscriber(this);
         subscriber.setMessageType(topic);
         subscriber.setResponseProducer(supplier);
@@ -233,7 +278,7 @@ public class Bus {
     }
 
     private <V, R> TransformerSubscriber getRequestContentSubscriber(
-            Enum<? extends Enum<?>> topic, Function<V, R> responseResolver) {
+            T topic, Function<V, R> responseResolver) {
         RequestBagSubscriber subscriber = new RequestBagSubscriber(this, topic);
         subscriber.setMessageType(topic);
         subscriber.setResponseResolver(responseResolver);

@@ -1,28 +1,33 @@
 package pl.khuzzuk.messaging;
 
 import java.text.NumberFormat;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class BusBenchmark
 {
-   private Bus bus;
-   private String[] msgs = {"msg1", "msg2", "msg3", "msg4", "msg5"};
+   private Bus<MessageType> bus;
+   private Set<MessageType> msgs = EnumSet.allOf(MessageType.class);
+   private double setSize = msgs.size();
    private AtomicInteger counter = new AtomicInteger(0);
    private Runtime runtime;
    private NumberFormat format;
 
-   public static void main(String[] args) {
+   public static void main(String[] args) throws InterruptedException {
       BusBenchmark benchmark = new BusBenchmark();
       benchmark.run();
       benchmark.run();
    }
 
-   private void run() {
+   private void run() throws InterruptedException {
       init();
       System.out.println("Sending before warm up");
       simpleSend(100_000);
+      tryCleaningMemory();
       warmUp();
+      tryCleaningMemory();
       simpleSend(2_000_000);
       close();
    }
@@ -32,24 +37,26 @@ public class BusBenchmark
       format = NumberFormat.getNumberInstance();
       System.out.println();
       System.out.println("Initializing bus");
-      bus = Bus.initializeBus(false);
-      for (String mgs : msgs)
+      bus = Bus.initializeBus(MessageType.class, false);
+      for (MessageType mgs : msgs)
       {
-         //bus.setReaction(mgs, counter::incrementAndGet);
+         bus.setReaction(mgs, counter::incrementAndGet);
       }
    }
 
    private void warmUp() {
       System.out.println();
       System.out.println("Starting warm up");
+      reportMemory();
       for (long i = 0; i < 3_000_000; i++) {
          if (i % 1_000_000 == 0)  {
             System.out.println("initialization iterated for " + i);
          }
-         for (String msg : msgs) {
-            //bus.send(msg);
+         for (MessageType msg : msgs) {
+            bus.send(msg);
          }
       }
+      reportMemory();
    }
 
    private void close() {
@@ -60,18 +67,18 @@ public class BusBenchmark
    private void simpleSend(long reps) {
       reportMemory();
       System.out.println();
-      System.out.println("Start sending messages - " + format.format(reps * 5d));
+      System.out.println("Start sending messages - " + format.format(reps * setSize));
       long start = System.nanoTime();
       for (long i = 0; i < reps; i++)
       {
-         for (String msg : msgs)
+         for (MessageType msg : msgs)
          {
-            //bus.send(msg);
+            bus.send(msg);
          }
       }
       long timeElapsed = (System.nanoTime() - start) / 1_000_000L;
       System.out.println("Finished sending messages, total time was " + timeElapsed + "ms");
-      double rateNum = ((double) reps * 5d * 1000d) / ((double) timeElapsed);
+      double rateNum = ((double) reps * setSize * 1000d) / ((double) timeElapsed);
       String rate = format.format(rateNum);
       System.out.println("Rate is " + rate + " messages per second");
       reportMemory();
@@ -82,5 +89,14 @@ public class BusBenchmark
       System.out.println("Memory usage:");
       System.out.println("Total memory: " + format.format(runtime.totalMemory()));
       System.out.println("Memory in use: " + format.format(runtime.totalMemory() - runtime.freeMemory()));
+   }
+
+   private void tryCleaningMemory() throws InterruptedException {
+      System.gc();
+      System.out.println();
+      System.out.println("Try to clen memory for 10 seconds");
+      Thread.sleep(10000);
+      System.out.println("Memory cleaning done");
+      System.out.println();
    }
 }

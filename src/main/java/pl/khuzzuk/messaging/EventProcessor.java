@@ -10,23 +10,26 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-class EventProcessor {
-    private final Map<Enum<? extends Enum<?>>, List<Subscriber>> subscribers;
-    private final Map<Enum<? extends Enum<?>>, List<RequestSubscriber>> requestSubscribers;
-    private final Map<Enum<? extends Enum<?>>, List<ContentSubscriber>> contentSubscribers;
-    private final Map<Enum<? extends Enum<?>>, List<TransformerSubscriber>> transformerSubscribers;
+class EventProcessor<T extends Enum<T>> {
+    private final Map<T, List<Subscriber>> subscribers;
+    private final Map<T, List<RequestSubscriber>> requestSubscribers;
+    private final Map<T, List<ContentSubscriber>> contentSubscribers;
+    private final Map<T, List<TransformerSubscriber>> transformerSubscribers;
     private final ExecutorService pool;
+    private final Class<T> messageTypes;
 
-    EventProcessor(Map<Enum<? extends Enum<?>>, List<Subscriber>> subscribers,
-                   Map<Enum<? extends Enum<?>>, List<ContentSubscriber>> contentSubscribers,
-                   Map<Enum<? extends Enum<?>>, List<RequestSubscriber>> requestSubscribers,
-                   Map<Enum<? extends Enum<?>>, List<TransformerSubscriber>> transformerSubscribers,
-                   ExecutorService pool) {
+    EventProcessor(Map<T, List<Subscriber>> subscribers,
+                   Map<T, List<RequestSubscriber>> requestSubscribers,
+                   Map<T, List<ContentSubscriber>> contentSubscribers,
+                   Map<T, List<TransformerSubscriber>> transformerSubscribers,
+                   ExecutorService pool,
+                   Class<T> messageTypes) {
         this.subscribers = subscribers;
         this.requestSubscribers = requestSubscribers;
         this.contentSubscribers = contentSubscribers;
         this.transformerSubscribers = transformerSubscribers;
         this.pool = pool;
+        this.messageTypes = messageTypes;
     }
 
     void close() {
@@ -42,7 +45,7 @@ class EventProcessor {
         pool.submit(() -> subscribers.forEach(Subscriber::receive));
     }
 
-    private <T> void submitTask(List<ContentSubscriber> subscribers, T content) {
+    private <V> void submitTask(List<ContentSubscriber> subscribers, V content) {
         pool.submit(() -> {
             for (ContentSubscriber subscriber : subscribers) {
                 subscriber.receive(content);
@@ -50,33 +53,33 @@ class EventProcessor {
         });
     }
 
-    private void submitResponseTask(List<RequestSubscriber> subscribers, Enum<? extends Enum> response) {
+    private void submitResponseTask(List<RequestSubscriber> subscribers, T response, T errorTopic) {
         pool.submit(() -> {
             for (RequestSubscriber subscriber : subscribers) {
-                subscriber.receive(response);
+                subscriber.receive(response, errorTopic);
             }
         });
     }
 
-    private <T> void submitResponseWithContentTask(List<TransformerSubscriber> subscribers, T content, Enum<? extends Enum> response) {
+    private <V> void submitResponseWithContentTask(List<TransformerSubscriber> subscribers,
+                                                   V content, T response, T errorTopic) {
         pool.submit(() -> {
             for (TransformerSubscriber subscriber : subscribers) {
-                subscriber.receive(content, response);
+                subscriber.receive(content, response, errorTopic);
             }
         });
     }
 
-    void processEvent(Enum<? extends Enum> topic) {
+    void processEvent(T topic) {
         List<Subscriber> subscribers = this.subscribers.get(topic);
         if (subscribers == null) {
-            System.err.print("No subscribers for topic: ");
-            System.err.println(topic);
+            System.err.println(String.format("No subscribers for topic: %s", topic));
             return;
         }
         submitTask(subscribers);
     }
 
-    <T> void processContent(Enum<? extends Enum> topic, T content) {
+    <V> void processContent(T topic, V content) {
         List<Subscriber> subscribers = this.subscribers.get(topic);
         if (subscribers != null) {
             submitTask(subscribers);
@@ -84,14 +87,13 @@ class EventProcessor {
 
         List<ContentSubscriber> producerSubscribers = contentSubscribers.get(topic);
         if (producerSubscribers == null) {
-            System.err.print("No content subscribers for topic: ");
-            System.err.println(topic);
+            System.err.println(String.format("No content subscribers for topic: %s", topic));
             return;
         }
         submitTask(producerSubscribers, content);
     }
 
-    void processRequest(Enum<? extends Enum> topic, Enum<? extends Enum> response) {
+    void processRequest(T topic, T response, T errorTopic) {
         List<Subscriber> subscribers = this.subscribers.get(topic);
         if (subscribers != null) {
             submitTask(subscribers);
@@ -99,14 +101,13 @@ class EventProcessor {
 
         List<RequestSubscriber> requestSubscribers = this.requestSubscribers.get(topic);
         if (requestSubscribers == null) {
-            System.out.print("No response defined for topic: ");
-            System.out.println(topic);
+            System.err.println(String.format("No response defined for topic: %s", topic));
             return;
         }
-        submitResponseTask(requestSubscribers, response);
+        submitResponseTask(requestSubscribers, response, errorTopic);
     }
 
-    <T> void processRequestWithContent(Enum<? extends Enum> topic, Enum<? extends Enum> response, T content) {
+    <V> void processRequestWithContent(T topic, T response, V content, T errorTopic) {
         List<Subscriber> subscribers = this.subscribers.get(topic);
         if (subscribers != null) {
             submitTask(subscribers);
@@ -114,7 +115,7 @@ class EventProcessor {
 
         List<RequestSubscriber> requestSubscribers = this.requestSubscribers.get(topic);
         if (requestSubscribers != null) {
-            submitResponseTask(requestSubscribers, response);
+            submitResponseTask(requestSubscribers, response, errorTopic);
         }
 
         List<ContentSubscriber> producerSubscribers = contentSubscribers.get(topic);
@@ -128,6 +129,6 @@ class EventProcessor {
             System.err.println(topic);
             return;
         }
-        submitResponseWithContentTask(transformerSubscribers, content, response);
+        submitResponseWithContentTask(transformerSubscribers, content, response, errorTopic);
     }
 }

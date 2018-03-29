@@ -11,7 +11,7 @@ public class GuiRequestProducerSubscriber extends RequestProducerSubscriber {
     }
 
     @Override
-    public void receive(Enum<? extends Enum> responseTopic, Enum<? extends Enum> errorTopic) {
-        Platform.runLater(() -> super.receive(responseTopic, errorTopic));
+    public void receive(Enum<? extends Enum> responseTopic) {
+        Platform.runLater(() -> super.receive(responseTopic));
     }
 }

@@ -37,10 +37,10 @@ public class BusBenchmark
       format = NumberFormat.getNumberInstance();
       System.out.println();
       System.out.println("Initializing bus");
-      bus = Bus.initializeBus(MessageType.class, false);
+      bus = Bus.initializeBus(MessageType.class);
       for (MessageType mgs : msgs)
       {
-         bus.setReaction(mgs, counter::incrementAndGet);
+         bus.subscribingFor(mgs).then(counter::incrementAndGet).subscribe();
       }
    }
 
@@ -53,7 +53,7 @@ public class BusBenchmark
             System.out.println("initialization iterated for " + i);
          }
          for (MessageType msg : msgs) {
-            bus.send(msg);
+            bus.message(msg).send();
          }
       }
       reportMemory();
@@ -73,7 +73,7 @@ public class BusBenchmark
       {
          for (MessageType msg : msgs)
          {
-            bus.send(msg);
+            bus.message(msg).send();
          }
       }
       long timeElapsed = (System.nanoTime() - start) / 1_000_000L;
@@ -94,9 +94,14 @@ public class BusBenchmark
    private void tryCleaningMemory() throws InterruptedException {
       System.gc();
       System.out.println();
-      System.out.println("Try to clen memory for 10 seconds");
+      System.out.println("Try to clean memory for 10 seconds");
       Thread.sleep(10000);
       System.out.println("Memory cleaning done");
       System.out.println();
+   }
+
+   private enum MessageType
+   {
+      MSG1, MSG2, MSG3, MSG4, MSG5
    }
 }

@@ -9,7 +9,7 @@ public class GuiRequestBagSubscriber extends RequestBagSubscriber {
     }
 
     @Override
-    public <T> void receive(T content, Enum<? extends Enum<?>> responseTopic, Enum<? extends Enum<?>> errorTopic) {
-        Platform.runLater(() -> super.receive(content, responseTopic, errorTopic));
+    public <T> void receive(T content, Enum<? extends Enum<?>> responseTopic) {
+        Platform.runLater(() -> super.receive(content, responseTopic));
     }
 }

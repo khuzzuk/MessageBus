@@ -11,17 +11,9 @@ public class RequestMessageSubscriber extends AbstractSubscriber implements Requ
 
     @Override
     @SuppressWarnings("unchecked")
-    public void receive(Enum<? extends Enum> responseTopic, Enum<? extends Enum> errorTopic) {
-        try {
-            super.receive();
-        } catch (Throwable t) {
-            t.printStackTrace();
-            if (errorTopic != null) {
-                bus.send(errorTopic);
-            }
-            return;
-        }
-        bus.send(responseTopic);
+    public void receive(Enum<? extends Enum> responseTopic) {
+        super.receive();
+        bus.message(responseTopic).send();
     }
 
     public Bus getBus() {

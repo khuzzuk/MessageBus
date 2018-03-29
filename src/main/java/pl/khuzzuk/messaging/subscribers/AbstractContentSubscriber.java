@@ -2,7 +2,7 @@ package pl.khuzzuk.messaging.subscribers;
 
 import java.util.function.Consumer;
 
-abstract class AbstractContentSubscriber extends AbstractSubscriber implements ContentSubscriber {
+public abstract class AbstractContentSubscriber extends AbstractSubscriber implements ContentSubscriber {
     Consumer consumer;
     private Enum<? extends Enum> messageType;
 

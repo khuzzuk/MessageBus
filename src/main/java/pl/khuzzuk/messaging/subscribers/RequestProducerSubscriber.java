@@ -1,8 +1,8 @@
 package pl.khuzzuk.messaging.subscribers;
 
-import pl.khuzzuk.messaging.Bus;
-
 import java.util.function.Supplier;
+
+import pl.khuzzuk.messaging.Bus;
 
 public class RequestProducerSubscriber extends RequestMessageSubscriber implements ProducerSubscriber {
     private Supplier supplier;
@@ -13,14 +13,9 @@ public class RequestProducerSubscriber extends RequestMessageSubscriber implemen
 
     @Override
     @SuppressWarnings("unchecked")
-    public void receive(Enum<? extends Enum> responseTopic, Enum<? extends Enum> errorTopic) {
-        try {
-            Object content = supplier.get();
-            getBus().send(responseTopic, content);
-        } catch (Throwable t) {
-            t.printStackTrace();
-            getBus().send(errorTopic);
-        }
+    public void receive(Enum<? extends Enum> responseTopic) {
+        Object content = supplier.get();
+        getBus().message(responseTopic).withContent(content).send();
     }
 
     @Override

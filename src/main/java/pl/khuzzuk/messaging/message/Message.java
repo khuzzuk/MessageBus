@@ -70,4 +70,17 @@ public class Message<T extends Enum<T>>
    {
       this.content = content;
    }
+
+   @Override
+   public String toString()
+   {
+      String contentText = content == null ? "null" : content.getClass().getName();
+      return "Message{" +
+            "topic=" + topic +
+            ", responseTopic=" + responseTopic +
+            ", immediateResponse=" + immediateResponse +
+            ", onError=" + onError +
+            ", content=" + contentText +
+            '}';
+   }
 }

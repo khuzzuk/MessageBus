@@ -2,10 +2,14 @@ package pl.khuzzuk.messaging;
 
 import java.io.PrintStream;
 import java.util.EnumMap;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import pl.khuzzuk.messaging.message.MessageBuilder;
 import pl.khuzzuk.messaging.processor.EventProcessor;
+import pl.khuzzuk.messaging.processor.LoggingEventProcessor;
+import pl.khuzzuk.messaging.subscriber.Subscriber;
 
 public class Bus<T extends Enum<T>> {
     private final EventProcessor<T> eventProcessor;
@@ -22,15 +26,21 @@ public class Bus<T extends Enum<T>> {
 
     @SuppressWarnings("WeakerAccess")
     public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, PrintStream out) {
-        return initializeBus(enumType, out, 3);
+        return initializeBus(enumType, out, false);
     }
 
     @SuppressWarnings("WeakerAccess")
-    public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, PrintStream out, int threads) {
-        EventProcessor<T> enumEventProcessor = new EventProcessor<>(
-              new EnumMap<>(enumType),
-              Executors.newFixedThreadPool(threads),
-              out);
+    public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, PrintStream out, boolean loggingMessages) {
+        return initializeBus(enumType, out, loggingMessages, 3);
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, PrintStream out, boolean loggingMessages, int threads) {
+        EnumMap<T, List<Subscriber<T>>> enumMap = new EnumMap<>(enumType);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        EventProcessor<T> enumEventProcessor = loggingMessages
+              ? new LoggingEventProcessor<>(enumMap, pool, out)
+              : new EventProcessor<>(enumMap, pool, out);
 
         return new Bus<>(enumEventProcessor);
     }

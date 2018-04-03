@@ -5,9 +5,9 @@ import pl.khuzzuk.messaging.subscriber.Subscriber;
 
 class BusTask<T extends Enum<T>> implements Runnable
 {
-   private Message<T> message;
-   private Subscriber<T> subscriber;
-   private BusContext<T> busContext;
+   Message<T> message;
+   Subscriber<T> subscriber;
+   BusContext<T> busContext;
 
    BusTask(Message<T> message, Subscriber<T> subscriber, BusContext<T> busContext) {
       this.message = message;

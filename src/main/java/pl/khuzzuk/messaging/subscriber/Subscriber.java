@@ -10,9 +10,10 @@ import pl.khuzzuk.messaging.message.Message;
 
 public class Subscriber<T extends Enum<T>>
 {
+   private static final Consumer EMPTY_CONSUMER = __ -> {/*nothing*/};
    private final Bus<T> bus;
    private Action onReceive = Action.EMPTY_ACTION;
-   private Consumer onPayload = __ -> {/*nothing*/};
+   private Consumer onPayload = EMPTY_CONSUMER;
    private Supplier onRequest;
    private Function onPayloadRequest;
 
@@ -66,5 +67,18 @@ public class Subscriber<T extends Enum<T>>
    public void setOnPayloadRequest(Function onPayloadRequest)
    {
       this.onPayloadRequest = onPayloadRequest;
+   }
+
+   @Override
+   public String toString()
+   {
+      String identity = onReceive != Action.EMPTY_ACTION
+            ? onReceive.toString()
+            : onPayload != EMPTY_CONSUMER
+               ? onPayload.toString()
+               : onRequest != null
+                  ? onRequest.toString()
+                  : onPayloadRequest != null ? onReceive.toString() : null;
+      return identity;
    }
 }

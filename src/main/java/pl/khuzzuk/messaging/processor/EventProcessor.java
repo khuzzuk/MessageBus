@@ -12,8 +12,8 @@ import pl.khuzzuk.messaging.subscriber.Subscriber;
 
 public class EventProcessor<T extends Enum<T>> {
     final Map<T, List<pl.khuzzuk.messaging.subscriber.Subscriber<T>>> subscribers;
-    private final ExecutorService pool;
-    private final BusContext<T> busContext;
+    final ExecutorService pool;
+    final BusContext<T> busContext;
 
    public EventProcessor(Map<T, List<pl.khuzzuk.messaging.subscriber.Subscriber<T>>> subscribers, ExecutorService pool, PrintStream out)
    {
@@ -23,6 +23,7 @@ public class EventProcessor<T extends Enum<T>> {
    }
 
    public void close() {
+      busContext.out.println("Closing bus");
         try {
             pool.awaitTermination(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -44,7 +45,7 @@ public class EventProcessor<T extends Enum<T>> {
        }
     }
 
-    private void submitTask(Message<T> message, pl.khuzzuk.messaging.subscriber.Subscriber<T> subscriber)
+    void submitTask(Message<T> message, pl.khuzzuk.messaging.subscriber.Subscriber<T> subscriber)
     {
         pool.submit(new BusTask<>(message, subscriber, busContext));
     }

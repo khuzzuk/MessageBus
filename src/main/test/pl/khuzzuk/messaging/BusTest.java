@@ -28,7 +28,7 @@ public class BusTest {
 
     @BeforeClass
     public void setUp() {
-        bus = Bus.initializeBus(MessageType.class, out, 1);
+        bus = Bus.initializeBus(MessageType.class, out, false, 1);
     }
 
     @BeforeMethod

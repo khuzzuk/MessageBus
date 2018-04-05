@@ -1,5 +1,5 @@
 package pl.khuzzuk.messaging;
 
 enum MessageType {
-    MESSAGE, ERROR, REQUEST, RESPONSE;
+    MESSAGE, ERROR, REQUEST, RESPONSE, SECONDARY_RESPONSE;
 }

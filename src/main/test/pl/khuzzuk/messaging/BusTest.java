@@ -185,6 +185,21 @@ public class BusTest {
     }
 
     @Test
+    public void testMultipleMapResponses() {
+        bus.subscribingFor(MessageType.REQUEST).mapResponse(counter::addAndGet).subscribe();
+        bus.subscribingFor(MessageType.RESPONSE).accept((Integer i) -> counter.set(1)).subscribe();
+        bus.subscribingFor(MessageType.SECONDARY_RESPONSE).accept((Integer i) -> counter.set(2)).subscribe();
+
+        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).withContent(0).send();
+
+        await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
+
+        bus.message(MessageType.REQUEST).withResponse(MessageType.SECONDARY_RESPONSE).withContent(0).send();
+
+        await().atMost(200, MILLISECONDS).until(() -> counter.get() == 2);
+    }
+
+    @Test
     public void testUnSubscribeForMessage() {
         RuntimeException exception = mock(RuntimeException.class);
 

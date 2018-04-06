@@ -15,8 +15,8 @@ public class LoggingBusTask<T extends Enum<T>> extends BusTask<T>
    @Override
    public void run()
    {
-      busContext.out.println(String.format("Receiving: %s\n\tfor: %s", message, subscriber));
+      busContext.out.println(String.format("Receiving: %s%n\tfor: %s", message, subscriber));
       super.run();
-      busContext.out.println(String.format("Finished: %s\n\tfor: %s", message, subscriber));
+      busContext.out.println(String.format("Finished: %s%n\tfor: %s", message, subscriber));
    }
 }

@@ -21,7 +21,7 @@ public class Bus<T extends Enum<T>> {
 
     @SuppressWarnings("unused")
     public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType) {
-        return initializeBus(enumType, System.out);
+        return initializeBus(enumType, System.out); //NOSONAR
     }
 
     @SuppressWarnings("WeakerAccess")

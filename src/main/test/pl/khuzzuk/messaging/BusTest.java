@@ -19,6 +19,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import pl.khuzzuk.messaging.subscriber.Subscriber;
 
 public class BusTest {
 
@@ -71,7 +72,7 @@ public class BusTest {
 
     @Test
     public void requestCheck() {
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(Action.EMPTY_ACTION).subscribe();
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(Subscriber.EMPTY_ACTION).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(counter::incrementAndGet).subscribe();
         bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).send();
 

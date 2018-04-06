@@ -28,6 +28,7 @@ public class EventProcessor<T extends Enum<T>> {
             pool.awaitTermination(1, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             pool.shutdownNow();
+            Thread.currentThread().interrupt();
         }
         pool.shutdownNow();
     }

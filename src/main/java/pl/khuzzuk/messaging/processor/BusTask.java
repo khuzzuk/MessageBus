@@ -27,7 +27,7 @@ class BusTask<T extends Enum<T>> implements Runnable
             message.getImmediateResponse().resolve();
          }
       }
-      catch (Throwable t)
+      catch (Exception t)
       {
          busContext.out.println(String.format("Error during task execution for topic: %s", message.getTopic()));
          t.printStackTrace(busContext.out);

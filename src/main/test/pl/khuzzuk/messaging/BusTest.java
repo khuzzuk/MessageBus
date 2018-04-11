@@ -7,6 +7,7 @@ import static org.mockito.Mockito.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static pl.khuzzuk.messaging.MessageType.REQUEST;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -72,9 +73,9 @@ public class BusTest {
 
     @Test
     public void requestCheck() {
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(Subscriber.EMPTY_ACTION).subscribe();
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).then(Subscriber.EMPTY_ACTION).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(counter::incrementAndGet).subscribe();
-        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).send();
+        bus.message(REQUEST).withResponse(MessageType.RESPONSE).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
 
@@ -86,9 +87,10 @@ public class BusTest {
     public void requestBagTest() {
         Integer toAdd = 10;
 
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).mapResponse(counter::addAndGet).subscribe();
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).mapResponse(counter::addAndGet).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).accept(counter::addAndGet).subscribe();
-        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).withContent(toAdd).send();
+
+        bus.message(REQUEST).withResponse(MessageType.RESPONSE).withContent(toAdd).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 20);
 
@@ -104,24 +106,24 @@ public class BusTest {
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
-    public void describeExceptionWhenTryingToSendSimpleMessageForRequest() {
+    public void describeExceptionWhenTryingToSubscribeWithoutAction() {
         bus.subscribingFor(MessageType.MESSAGE).subscribe();
     }
 
     @Test
     public void errorResponse() {
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(() -> {
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).then(() -> {
             throw new IllegalStateException();
         }).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(() -> counter.addAndGet(2)).subscribe();
 
-        bus.message(MessageType.REQUEST)
+        bus.message(REQUEST)
               .withResponse(MessageType.RESPONSE)
               .onError(counter::incrementAndGet)
               .send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
-        verify(out).println(contains(MessageType.REQUEST.name()));
+        verify(out).println(contains(REQUEST.name()));
         verify(out).println(any(IllegalStateException.class));
 
         bus.unSubscribe(subscriber1);
@@ -131,12 +133,12 @@ public class BusTest {
 
     @Test
     public void errorResponseWithContent() {
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).accept(__ -> {
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).accept(__ -> {
             throw new IllegalStateException();
         }).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(() -> counter.addAndGet(2)).subscribe();
 
-        bus.message(MessageType.REQUEST)
+        bus.message(REQUEST)
               .withResponse(MessageType.RESPONSE)
               .withContent(1)
               .onError(counter::incrementAndGet).send();
@@ -152,15 +154,15 @@ public class BusTest {
     public void checkResponseErrorWithoutErrorTopic() {
         RuntimeException mocked = Mockito.mock(RuntimeException.class);
 
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(() -> {
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).then(() -> {
             throw mocked;
         }).subscribe();
 
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(counter::incrementAndGet).subscribe();
 
-        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).send();
+        bus.message(REQUEST).withResponse(MessageType.RESPONSE).send();
 
-        await().atMost(200, MILLISECONDS).until(() -> verify(out).println(contains(MessageType.REQUEST.name())));
+        await().atMost(200, MILLISECONDS).until(() -> verify(out).println(contains(REQUEST.name())));
         verify(mocked).printStackTrace(out);
 
         bus.unSubscribe(subscriber1);
@@ -171,12 +173,12 @@ public class BusTest {
     public void errorResponseWithContentWithoutErrorTopic() {
         RuntimeException mocked = Mockito.mock(RuntimeException.class);
 
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).mapResponse(__ -> {
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).mapResponse(__ -> {
             throw mocked;
         }).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(() -> counter.addAndGet(2)).subscribe();
 
-        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).withContent(1).send();
+        bus.message(REQUEST).withResponse(MessageType.RESPONSE).withContent(1).send();
 
         await().atMost(200, MILLISECONDS).until(() -> verify(mocked).printStackTrace(out));
         Assert.assertEquals(counter.get(), 0);
@@ -187,30 +189,45 @@ public class BusTest {
 
     @Test
     public void testMultipleMapResponses() {
-        bus.subscribingFor(MessageType.REQUEST).mapResponse(counter::addAndGet).subscribe();
-        bus.subscribingFor(MessageType.RESPONSE).accept((Integer i) -> counter.set(1)).subscribe();
-        bus.subscribingFor(MessageType.SECONDARY_RESPONSE).accept((Integer i) -> counter.set(2)).subscribe();
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).mapResponse(counter::addAndGet).subscribe();
+        Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).accept((Integer i) -> counter.set(1)).subscribe();
+        Cancellable<MessageType> subscriber3 = bus.subscribingFor(MessageType.SECONDARY_RESPONSE).accept((Integer i) -> counter.set(2)).subscribe();
 
-        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).withContent(0).send();
+        bus.message(REQUEST).withResponse(MessageType.RESPONSE).withContent(0).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
 
-        bus.message(MessageType.REQUEST).withResponse(MessageType.SECONDARY_RESPONSE).withContent(0).send();
+        bus.message(REQUEST).withResponse(MessageType.SECONDARY_RESPONSE).withContent(0).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 2);
+
+        bus.unSubscribe(subscriber1);
+        bus.unSubscribe(subscriber2);
+        bus.unSubscribe(subscriber3);
+    }
+
+    @Test
+    public void testImmidiateResponseWithContentInOriginalMessage() {
+        Cancellable<MessageType> subscriber = bus.subscribingFor(REQUEST).accept(counter::addAndGet).subscribe();
+
+        bus.message(REQUEST).withContent(2).onResponse(counter::incrementAndGet).send();
+
+        await().atMost(200, MILLISECONDS).until(() -> counter.get() == 3);
+
+        bus.unSubscribe(subscriber);
     }
 
     @Test
     public void testUnSubscribeForMessage() {
         RuntimeException exception = mock(RuntimeException.class);
 
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(() -> {
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).then(() -> {
             throw exception;
         }).subscribe();
 
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(counter::incrementAndGet).subscribe();
 
-        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE)
+        bus.message(REQUEST).withResponse(MessageType.RESPONSE)
               .onError(counter::incrementAndGet).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
@@ -218,18 +235,18 @@ public class BusTest {
 
         bus.unSubscribe(subscriber2);
 
-        bus.message(MessageType.REQUEST)
+        bus.message(REQUEST)
               .withResponse(MessageType.RESPONSE).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
         verify(exception, times(2)).printStackTrace(out);
-        verify(out, times(2)).println(contains(MessageType.REQUEST.name()));
+        verify(out, times(2)).println(contains(REQUEST.name()));
 
         bus.unSubscribe(subscriber1);
 
-        subscriber1 = bus.subscribingFor(MessageType.REQUEST).then(() -> counter.addAndGet(3)).subscribe();
+        subscriber1 = bus.subscribingFor(REQUEST).then(() -> counter.addAndGet(3)).subscribe();
 
-        bus.message(MessageType.REQUEST)
+        bus.message(REQUEST)
               .withResponse(MessageType.RESPONSE)
               .send();
 
@@ -238,7 +255,7 @@ public class BusTest {
 
         bus.removeAllActionsFor(MessageType.ERROR);
 
-        bus.message(MessageType.REQUEST)
+        bus.message(REQUEST)
               .withResponse(MessageType.RESPONSE)
               .send();
 
@@ -247,11 +264,11 @@ public class BusTest {
 
         bus.unSubscribe(subscriber1);
 
-        bus.message(MessageType.REQUEST)
+        bus.message(REQUEST)
               .withResponse(MessageType.RESPONSE)
               .send();
 
         await().atMost(200, MILLISECONDS).until(
-                () -> verify(out, times(3)).println(contains(MessageType.REQUEST.name())));
+                () -> verify(out, times(3)).println(contains(REQUEST.name())));
     }
 }

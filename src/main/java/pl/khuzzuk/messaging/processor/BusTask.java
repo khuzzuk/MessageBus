@@ -21,11 +21,6 @@ class BusTask<T extends Enum<T>> implements Runnable
       try
       {
          subscriber.receive(message);
-
-         if (message.getImmediateResponse() != null)
-         {
-            message.getImmediateResponse().resolve();
-         }
       }
       catch (Exception t)
       {

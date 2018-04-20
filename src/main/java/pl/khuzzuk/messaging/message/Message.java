@@ -83,4 +83,12 @@ public class Message<T extends Enum<T>>
             ", content=" + contentText +
             '}';
    }
+
+   public void clear() {
+      topic = null;
+      responseTopic = null;
+      immediateResponse = null;
+      onError = null;
+      content = null;
+   }
 }

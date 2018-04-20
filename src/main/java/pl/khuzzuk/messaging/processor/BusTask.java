@@ -3,16 +3,22 @@ package pl.khuzzuk.messaging.processor;
 import pl.khuzzuk.messaging.message.Message;
 import pl.khuzzuk.messaging.subscriber.Subscriber;
 
-class BusTask<T extends Enum<T>> implements Runnable
+public class BusTask<T extends Enum<T>> implements Runnable
 {
+   final BusContext<T> busContext;
    Message<T> message;
    Subscriber<T> subscriber;
-   BusContext<T> busContext;
 
-   BusTask(Message<T> message, Subscriber<T> subscriber, BusContext<T> busContext) {
-      this.message = message;
-      this.subscriber = subscriber;
+   public BusTask(BusContext<T> busContext) {
       this.busContext = busContext;
+   }
+
+   public void setMessage(Message<T> message) {
+      this.message = message;
+   }
+
+   public void setSubscriber(Subscriber<T> subscriber) {
+      this.subscriber = subscriber;
    }
 
    @Override
@@ -28,5 +34,9 @@ class BusTask<T extends Enum<T>> implements Runnable
          t.printStackTrace(busContext.out);
          if (message.getOnError() != null) message.getOnError().resolve();
       }
+      busContext.returnMessageToCache(message);
+      message = null;
+      subscriber = null;
+      busContext.returnTaskToCache(this);
    }
 }

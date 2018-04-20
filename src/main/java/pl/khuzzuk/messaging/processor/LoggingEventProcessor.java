@@ -3,6 +3,7 @@ package pl.khuzzuk.messaging.processor;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 
 import pl.khuzzuk.messaging.message.Message;
@@ -12,9 +13,9 @@ public class LoggingEventProcessor<T extends Enum<T>> extends EventProcessor<T>
 {
    public LoggingEventProcessor(
          Map<T, List<Subscriber<T>>> subscribers,
-         ExecutorService pool, PrintStream out)
+         ExecutorService pool, PrintStream out, Queue<Message<T>> messagesCache, Queue<? extends BusTask<T>> tasksCache)
    {
-      super(subscribers, pool, out);
+      super(subscribers, pool, out, messagesCache, tasksCache);
    }
 
    @Override
@@ -25,8 +26,11 @@ public class LoggingEventProcessor<T extends Enum<T>> extends EventProcessor<T>
    }
 
    @Override
-   void submitTask(Message<T> message, Subscriber<T> subscriber)
-   {
-      pool.submit(new LoggingBusTask<>(message, subscriber, busContext));
+   void submitTask(Message<T> message, Subscriber<T> subscriber) {
+      BusTask<T> task = tasksCache.poll();
+      if (task == null) task = new LoggingBusTask<>(busContext);
+      task.setMessage(message);
+      task.setSubscriber(subscriber);
+      pool.submit(task);
    }
 }

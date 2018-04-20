@@ -87,10 +87,10 @@ public class BusTest {
     public void requestBagTest() {
         Integer toAdd = 10;
 
-        Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).mapResponse(counter::addAndGet).subscribe();
+        Cancellable<MessageType> subscriber1 = bus.subscribingFor(MessageType.REQUEST).mapResponse(counter::addAndGet).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).accept(counter::addAndGet).subscribe();
 
-        bus.message(REQUEST).withResponse(MessageType.RESPONSE).withContent(toAdd).send();
+        bus.message(MessageType.REQUEST).withResponse(MessageType.RESPONSE).withContent(toAdd).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 20);
 

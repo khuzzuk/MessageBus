@@ -3,20 +3,29 @@ package pl.khuzzuk.messaging;
 import java.io.PrintStream;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import pl.khuzzuk.messaging.message.Message;
 import pl.khuzzuk.messaging.message.MessageBuilder;
+import pl.khuzzuk.messaging.processor.BusTask;
 import pl.khuzzuk.messaging.processor.EventProcessor;
 import pl.khuzzuk.messaging.processor.LoggingEventProcessor;
 import pl.khuzzuk.messaging.subscriber.Subscriber;
 
 public class Bus<T extends Enum<T>> {
     private final EventProcessor<T> eventProcessor;
+    private final Queue<Message<T>> messagesCache;
+    private final Queue<MessageBuilder<T>> messageBuildersCache;
 
-    private Bus(EventProcessor<T> eventProcessor)
+    private Bus(EventProcessor<T> eventProcessor, Queue<Message<T>> messagesCache,
+          Queue<MessageBuilder<T>> messageBuildersCache)
     {
         this.eventProcessor = eventProcessor;
+        this.messagesCache = messagesCache;
+        this.messageBuildersCache = messageBuildersCache;
     }
 
     @SuppressWarnings("unused")
@@ -38,11 +47,16 @@ public class Bus<T extends Enum<T>> {
     public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, PrintStream out, boolean loggingMessages, int threads) {
         EnumMap<T, List<Subscriber<T>>> enumMap = new EnumMap<>(enumType);
         ExecutorService pool = Executors.newFixedThreadPool(threads);
-        EventProcessor<T> enumEventProcessor = loggingMessages
-              ? new LoggingEventProcessor<>(enumMap, pool, out)
-              : new EventProcessor<>(enumMap, pool, out);
+        Queue<Message<T>> messages = new ArrayBlockingQueue<>(threads * 2);
+        Queue<? extends BusTask<T>> tasks = new ArrayBlockingQueue<>(threads * 2);
 
-        return new Bus<>(enumEventProcessor);
+        EventProcessor<T> enumEventProcessor = loggingMessages
+              ? new LoggingEventProcessor<>(enumMap, pool, out, messages, tasks)
+              : new EventProcessor<>(enumMap, pool, out, messages, tasks);
+
+        return new Bus<>(enumEventProcessor,
+              messages,
+              new ArrayBlockingQueue<>(threads * 2));
     }
 
     @SuppressWarnings({"unused", "unchecked"})
@@ -70,9 +84,17 @@ public class Bus<T extends Enum<T>> {
     }
 
     @SuppressWarnings("unused")
-    public BusPublisher<T> message(T message)
+    public BusPublisher<T> message(T topic)
     {
-        return new MessageBuilder<>(message, eventProcessor);
+        Message<T> message = messagesCache.poll();
+        if (message == null) message = new Message<>();
+        message.setTopic(topic);
+        MessageBuilder<T> messageBuilder = messageBuildersCache.poll();
+        if (messageBuilder == null) {
+            messageBuilder = new MessageBuilder<>(eventProcessor, messageBuildersCache);
+        }
+        messageBuilder.setMessage(message);
+        return messageBuilder;
     }
 
     void setPrintStream(PrintStream out)

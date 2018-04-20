@@ -93,8 +93,8 @@ public class BusBenchmark
    private void tryCleaningMemory() throws InterruptedException {
       System.gc(); //NOSONAR
       System.out.println(); //NOSONAR
-      System.out.println("Try to clean memory for 10 seconds"); //NOSONAR
-      Thread.sleep(10000);
+      System.out.println("Try to clean memory for 2 seconds"); //NOSONAR
+      Thread.sleep(2000);
       System.out.println("Memory cleaning done"); //NOSONAR
       System.out.println(); //NOSONAR
    }

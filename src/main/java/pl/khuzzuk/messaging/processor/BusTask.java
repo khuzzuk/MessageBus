@@ -31,7 +31,7 @@ public class BusTask<T extends Enum<T>> implements Runnable
       catch (Exception t)
       {
          busContext.out.println(String.format("Error during task execution for topic: %s", message.getTopic()));
-         t.printStackTrace(busContext.out);
+         busContext.out.println(t);
          if (message.getOnError() != null) message.getOnError().resolve();
       }
       busContext.returnMessageToCache(message);

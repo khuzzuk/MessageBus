@@ -152,10 +152,10 @@ public class BusTest {
 
     @Test
     public void checkResponseErrorWithoutErrorTopic() {
-        RuntimeException mocked = Mockito.mock(RuntimeException.class);
+        RuntimeException exception = Mockito.mock(RuntimeException.class);
 
         Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).then(() -> {
-            throw mocked;
+            throw exception;
         }).subscribe();
 
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(counter::incrementAndGet).subscribe();
@@ -163,7 +163,7 @@ public class BusTest {
         bus.message(REQUEST).withResponse(MessageType.RESPONSE).send();
 
         await().atMost(200, MILLISECONDS).until(() -> verify(out).println(contains(REQUEST.name())));
-        verify(mocked).printStackTrace(out);
+        verify(out).println(exception);
 
         bus.unSubscribe(subscriber1);
         bus.unSubscribe(subscriber2);
@@ -171,16 +171,16 @@ public class BusTest {
 
     @Test
     public void errorResponseWithContentWithoutErrorTopic() {
-        RuntimeException mocked = Mockito.mock(RuntimeException.class);
+        RuntimeException exception = Mockito.mock(RuntimeException.class);
 
         Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).mapResponse(__ -> {
-            throw mocked;
+            throw exception;
         }).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(() -> counter.addAndGet(2)).subscribe();
 
         bus.message(REQUEST).withResponse(MessageType.RESPONSE).withContent(1).send();
 
-        await().atMost(200, MILLISECONDS).until(() -> verify(mocked).printStackTrace(out));
+        await().atMost(200, MILLISECONDS).until(() -> verify(out).println(exception));
         Assert.assertEquals(counter.get(), 0);
 
         bus.unSubscribe(subscriber1);
@@ -231,7 +231,7 @@ public class BusTest {
               .onError(counter::incrementAndGet).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
-        verify(exception).printStackTrace(out);
+        verify(out).println(exception);
 
         bus.unSubscribe(subscriber2);
 
@@ -239,7 +239,7 @@ public class BusTest {
               .withResponse(MessageType.RESPONSE).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
-        verify(exception, times(2)).printStackTrace(out);
+        verify(out, times(2)).println(exception);
         verify(out, times(2)).println(contains(REQUEST.name()));
 
         bus.unSubscribe(subscriber1);

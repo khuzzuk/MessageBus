@@ -59,7 +59,7 @@ public class EventProcessor<T extends Enum<T>> {
        if (task == null) task = new BusTask<>(busContext);
        task.setMessage(message);
        task.setSubscriber(subscriber);
-       pool.submit(task);
+       pool.execute(task);
     }
 
    public Map<T, List<Subscriber<T>>> getSubscribers()

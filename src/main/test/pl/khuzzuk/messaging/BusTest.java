@@ -2,12 +2,16 @@ package pl.khuzzuk.messaging;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static pl.khuzzuk.messaging.MessageType.MESSAGE;
 import static pl.khuzzuk.messaging.MessageType.REQUEST;
+import static pl.khuzzuk.messaging.MessageType.RESPONSE;
+import static pl.khuzzuk.messaging.MessageType.SECONDARY_RESPONSE;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -152,10 +156,10 @@ public class BusTest {
 
     @Test
     public void checkResponseErrorWithoutErrorTopic() {
-        RuntimeException mocked = Mockito.mock(RuntimeException.class);
+        RuntimeException exception = Mockito.mock(RuntimeException.class);
 
         Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).then(() -> {
-            throw mocked;
+            throw exception;
         }).subscribe();
 
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(counter::incrementAndGet).subscribe();
@@ -163,7 +167,7 @@ public class BusTest {
         bus.message(REQUEST).withResponse(MessageType.RESPONSE).send();
 
         await().atMost(200, MILLISECONDS).until(() -> verify(out).println(contains(REQUEST.name())));
-        verify(mocked).printStackTrace(out);
+        verify(out).println(exception);
 
         bus.unSubscribe(subscriber1);
         bus.unSubscribe(subscriber2);
@@ -171,16 +175,16 @@ public class BusTest {
 
     @Test
     public void errorResponseWithContentWithoutErrorTopic() {
-        RuntimeException mocked = Mockito.mock(RuntimeException.class);
+        RuntimeException exception = Mockito.mock(RuntimeException.class);
 
         Cancellable<MessageType> subscriber1 = bus.subscribingFor(REQUEST).mapResponse(__ -> {
-            throw mocked;
+            throw exception;
         }).subscribe();
         Cancellable<MessageType> subscriber2 = bus.subscribingFor(MessageType.RESPONSE).then(() -> counter.addAndGet(2)).subscribe();
 
         bus.message(REQUEST).withResponse(MessageType.RESPONSE).withContent(1).send();
 
-        await().atMost(200, MILLISECONDS).until(() -> verify(mocked).printStackTrace(out));
+        await().atMost(200, MILLISECONDS).until(() -> verify(out).println(exception));
         Assert.assertEquals(counter.get(), 0);
 
         bus.unSubscribe(subscriber1);
@@ -231,7 +235,7 @@ public class BusTest {
               .onError(counter::incrementAndGet).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
-        verify(exception).printStackTrace(out);
+        verify(out).println(exception);
 
         bus.unSubscribe(subscriber2);
 
@@ -239,7 +243,7 @@ public class BusTest {
               .withResponse(MessageType.RESPONSE).send();
 
         await().atMost(200, MILLISECONDS).until(() -> counter.get() == 1);
-        verify(exception, times(2)).printStackTrace(out);
+        verify(out, times(2)).println(exception);
         verify(out, times(2)).println(contains(REQUEST.name()));
 
         bus.unSubscribe(subscriber1);
@@ -270,5 +274,45 @@ public class BusTest {
 
         await().atMost(200, MILLISECONDS).until(
                 () -> verify(out, times(3)).println(contains(REQUEST.name())));
+    }
+
+    @Test
+    public void testBlockingOfPool() {
+        AtomicInteger counter = new AtomicInteger(0);
+        Cancellable<MessageType> mSub1 = bus.subscribingFor(MESSAGE).then(() -> bus.message(REQUEST).send()).subscribe();
+        Cancellable<MessageType> mSub2 = bus.subscribingFor(MESSAGE).then(() -> bus.message(REQUEST).send()).subscribe();
+        Cancellable<MessageType> mSub3 = bus.subscribingFor(MESSAGE).then(() -> bus.message(REQUEST).send()).subscribe();
+        Cancellable<MessageType> rSub1 = bus.subscribingFor(REQUEST).then(() -> bus.message(RESPONSE).send()).subscribe();
+        Cancellable<MessageType> rSub2 = bus.subscribingFor(REQUEST).then(() -> bus.message(RESPONSE).send()).subscribe();
+        Cancellable<MessageType> rSub3 = bus.subscribingFor(REQUEST).then(() -> bus.message(RESPONSE).send()).subscribe();
+        Cancellable<MessageType> sSub1 = bus.subscribingFor(RESPONSE).then(() -> bus.message(SECONDARY_RESPONSE).send()).subscribe();
+        Cancellable<MessageType> sSub2 = bus.subscribingFor(RESPONSE).then(() -> bus.message(SECONDARY_RESPONSE).send()).subscribe();
+        Cancellable<MessageType> sSub3 = bus.subscribingFor(RESPONSE).then(() -> bus.message(SECONDARY_RESPONSE).send()).subscribe();
+        Cancellable<MessageType> secSub = bus.subscribingFor(SECONDARY_RESPONSE).then(() -> {
+                  waitFor(1);
+                  counter.incrementAndGet();
+              }).subscribe();
+
+        bus.message(MESSAGE).send();
+        await().atMost(1, SECONDS).until(() -> counter.get() == 27);
+
+        bus.unSubscribe(mSub1);
+        bus.unSubscribe(mSub2);
+        bus.unSubscribe(mSub3);
+        bus.unSubscribe(rSub1);
+        bus.unSubscribe(rSub2);
+        bus.unSubscribe(rSub3);
+        bus.unSubscribe(sSub1);
+        bus.unSubscribe(sSub2);
+        bus.unSubscribe(sSub3);
+        bus.unSubscribe(secSub);
+    }
+
+    private static void waitFor(int miliseconds) {
+        try {
+            Thread.sleep(miliseconds);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

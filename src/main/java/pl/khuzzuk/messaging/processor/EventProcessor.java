@@ -4,8 +4,6 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import pl.khuzzuk.messaging.Cancellable;
 import pl.khuzzuk.messaging.message.Message;
@@ -13,12 +11,12 @@ import pl.khuzzuk.messaging.subscriber.Subscriber;
 
 public class EventProcessor<T extends Enum<T>> {
     final Map<T, List<Subscriber<T>>> subscribers;
-    final ExecutorService pool;
+    final BusWorkerPool<T> pool;
     final BusContext<T> busContext;
     final Queue<? extends BusTask<T>> tasksCache;
 
    public EventProcessor(Map<T, List<Subscriber<T>>> subscribers,
-         ExecutorService pool,
+         BusWorkerPool<T> pool,
          PrintStream out,
          Queue<Message<T>> messagesCache,
          Queue<? extends BusTask<T>> tasksCache)
@@ -31,14 +29,8 @@ public class EventProcessor<T extends Enum<T>> {
 
    public void close() {
       busContext.out.println("Closing bus");
-        try {
-            pool.awaitTermination(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            pool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-        pool.shutdownNow();
-    }
+      pool.close();
+   }
 
     public void processEvent(Message<T> message) {
         List<Subscriber<T>> currentSubscribers = subscribers.get(message.getTopic());
@@ -59,7 +51,7 @@ public class EventProcessor<T extends Enum<T>> {
        if (task == null) task = new BusTask<>(busContext);
        task.setMessage(message);
        task.setSubscriber(subscriber);
-       pool.submit(task);
+       pool.addOrWait(task);
     }
 
    public Map<T, List<Subscriber<T>>> getSubscribers()

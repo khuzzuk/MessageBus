@@ -5,12 +5,11 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import pl.khuzzuk.messaging.message.Message;
 import pl.khuzzuk.messaging.message.MessageBuilder;
 import pl.khuzzuk.messaging.processor.BusTask;
+import pl.khuzzuk.messaging.processor.BusWorkerPool;
 import pl.khuzzuk.messaging.processor.EventProcessor;
 import pl.khuzzuk.messaging.processor.LoggingEventProcessor;
 import pl.khuzzuk.messaging.subscriber.Subscriber;
@@ -46,7 +45,7 @@ public class Bus<T extends Enum<T>> {
     @SuppressWarnings("WeakerAccess")
     public static <T extends Enum<T>> Bus<T> initializeBus(Class<T> enumType, PrintStream out, boolean loggingMessages, int threads) {
         EnumMap<T, List<Subscriber<T>>> enumMap = new EnumMap<>(enumType);
-        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        BusWorkerPool<T> pool = BusWorkerPool.start(threads);
         Queue<Message<T>> messages = new ArrayBlockingQueue<>(threads * 2);
         Queue<? extends BusTask<T>> tasks = new ArrayBlockingQueue<>(threads * 2);
 

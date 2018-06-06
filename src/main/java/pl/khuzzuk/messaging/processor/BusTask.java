@@ -8,8 +8,9 @@ public class BusTask<T extends Enum<T>> implements Runnable
    final BusContext<T> busContext;
    Message<T> message;
    Subscriber<T> subscriber;
+   static final Runnable EMPTY_TASK = () -> {};
 
-   public BusTask(BusContext<T> busContext) {
+   BusTask(BusContext<T> busContext) {
       this.busContext = busContext;
    }
 
